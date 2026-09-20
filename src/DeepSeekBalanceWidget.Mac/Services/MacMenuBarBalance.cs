@@ -34,9 +34,13 @@ public sealed class MacMenuBarBalance : IDisposable
         IntPtr statusItem = SendIntPtrDouble(
             statusBar, GetSelector("statusItemWithLength:"), VariableStatusItemLength);
         IntPtr button = SendIntPtr(statusItem, GetSelector("button"));
-        return statusBar == IntPtr.Zero || statusItem == IntPtr.Zero || button == IntPtr.Zero
-            ? null
-            : CreateWithClickTarget(statusBar, statusItem, button, onClick);
+        if (statusBar == IntPtr.Zero || statusItem == IntPtr.Zero || button == IntPtr.Zero)
+            return null;
+
+        // statusItemWithLength: 返回的对象不被 NSStatusBar 持有，必须显式 retain，
+        // 否则 autorelease pool 清空后对象被释放，后续 objc_msgSend 会 SIGSEGV。
+        SendVoid(statusItem, GetSelector("retain"));
+        return CreateWithClickTarget(statusBar, statusItem, button, onClick);
     }
 
     private static MacMenuBarBalance? CreateWithClickTarget(
@@ -66,6 +70,7 @@ public sealed class MacMenuBarBalance : IDisposable
         SendVoidIntPtr(_button, GetSelector("setTarget:"), IntPtr.Zero);
         SendVoidIntPtr(_button, GetSelector("setAction:"), IntPtr.Zero);
         SendVoidIntPtr(_statusBar, GetSelector("removeStatusItem:"), _statusItem);
+        SendVoid(_statusItem, GetSelector("release"));
         ClickHandlers.TryRemove(_target, out _);
         SendVoid(_target, GetSelector("release"));
     }

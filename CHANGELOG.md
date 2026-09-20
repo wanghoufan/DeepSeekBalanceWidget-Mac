@@ -8,11 +8,15 @@
 
 ### 功能
 
+- 新增 **OpenCode Go 双账号监测**：设置页可配置第二把 API Key（独立钥匙串条目 `opencode-api-key-2`），胶囊 OC 区块并排显示 OC1/OC2 两张迷你卡（间距加大、只配一把 Key 时仅显示 OC1），详情卡双账号分组显示（账号1/账号2 前缀 + 空行分组），菜单栏新增独立 OC2 状态项（排在主项右侧，未配置第二把 Key 时自动隐藏）；账号2 预警独立评估
+- 新增 **胶囊月额度恢复天数**：OC 卡月行恢复时间显示纯天数数字（如 `24`），菜单栏主项 OC 标签改为 `OC1`
 - 新增 **GPT 预警事件日志**（`AlertEventLogger`）：低量预警与恢复提醒在评估触发时即落盘记录（写在弹窗开关判断之前），用户关闭弹窗后仍可回溯「提醒到底触发过没有」
 - 新增 **Codex 原生凭据刷新**（`CcSwitchCodexUsageProvider`）：除 CC Switch 存储外支持读取 Codex 原生 `auth.json` 账号（JWT 解析邮箱），OAuth token 过期自动刷新并原子回写两处存储；配套更新 `CcSwitchCodexUsageProviderTests`
 
 ### 修复
 
+- 修复 **测试连接闪退**：设置页 `ThemeBrush` 用 `Application.FindResource` 解析 ThemeDictionaries 中的主题画刷失败即抛未处理异常，现改为控件作用域解析并回退灰色
+- 修复 **保存第二把 Key 后原生崩溃**（SIGSEGV）：`MacMenuBarBalance` 未 retain `statusItemWithLength:` 返回的 NSStatusItem（AppKit 不持有该对象），第二个状态项创建后 autorelease pool 清空即释放，主线程再访问即段错误；现创建时 retain、Dispose 时 release
 - 修复 **OpenCode 额度不显示**：本机 OpenCode CLI 写入的 auth.json 条目名为 `opencode-go`，Provider 此前只识别 `opencode` 导致 fallback 读取永远失败、区块一直显示「未配置 API Key」；现两种条目名均兼容
 - 修复 **设置保存可能卡死/闪退**：钥匙串写入（`security` 命令）此前在 UI 线程同步执行，遇到 macOS 钥匙串授权确认框会把整个 app 挂死（观感即崩溃）；现改为 `security` 加 15 秒超时、保存流程移入后台线程，失败时设置页内显示明确错误
 - 设置页保存时控件属性先在 UI 线程取快照再进后台线程，避免跨线程读取 Avalonia 控件

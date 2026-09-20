@@ -56,4 +56,12 @@ public static class OpenCodeUsageFormatter
     /// <summary>胶囊行倒计时（同 GPT 胶囊）。</summary>
     public static string FormatCountdownShort(OpenCodeUsageWindow window, DateTimeOffset now)
         => CodexUsageFormatter.FormatCountdownShort(window.ResetsAt, now);
+
+    /// <summary>月额度恢复剩余天数：纯数字（如 24），不足一天为 0，未知为 --。</summary>
+    public static string FormatMonthlyDays(OpenCodeUsageWindow window, DateTimeOffset now)
+    {
+        if (window.ResetsAt is null) return "--";
+        double days = Math.Floor((window.ResetsAt.Value - now).TotalDays);
+        return days <= 0 ? "0" : days.ToString("0");
+    }
 }

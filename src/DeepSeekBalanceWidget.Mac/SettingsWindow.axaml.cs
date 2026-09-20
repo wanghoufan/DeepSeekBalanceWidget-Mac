@@ -17,6 +17,7 @@ public partial class SettingsWindow : Window
     private readonly Action? _onApplied;
     private bool _clearKey;
     private bool _clearOpenCodeKey;
+    private bool _clearOpenCodeKey2;
     private bool _clearOpenRouterKey;
 
     public SettingsWindow(MacConfigService configService, AppConfig config, Action? onApplied = null)
@@ -34,6 +35,7 @@ public partial class SettingsWindow : Window
     {
         ApiKeyBox.Text = _configService.GetApiKey() ?? string.Empty;
         OpenCodeKeyBox.Text = _configService.GetOpenCodeApiKey() ?? string.Empty;
+        OpenCodeKeyBox2.Text = _configService.GetOpenCodeApiKey2() ?? string.Empty;
         OpenRouterKeyBox.Text = _configService.GetOpenRouterApiKey() ?? string.Empty;
 
         IntervalBox.Text = _config.RefreshIntervalSeconds.ToString(CultureInfo.CurrentCulture);
@@ -120,6 +122,15 @@ public partial class SettingsWindow : Window
 
         OpenCodeKeyBox.Text = string.Empty;
         _clearOpenCodeKey = true;
+    }
+
+    private async void ClearOpenCodeKey2_Click(object? sender, RoutedEventArgs e)
+    {
+        if (!await ShowClearKeyMessageBoxAsync())
+            return;
+
+        OpenCodeKeyBox2.Text = string.Empty;
+        _clearOpenCodeKey2 = true;
     }
 
     private async void ClearOpenRouterKey_Click(object? sender, RoutedEventArgs e)
@@ -237,16 +248,27 @@ public partial class SettingsWindow : Window
 
     private async void TestOc_Click(object? sender, RoutedEventArgs e)
     {
-        string? key = string.IsNullOrWhiteSpace(OpenCodeKeyBox.Text) ? null : OpenCodeKeyBox.Text;
+        string? key1 = string.IsNullOrWhiteSpace(OpenCodeKeyBox.Text) ? null : OpenCodeKeyBox.Text;
+        string? key2 = string.IsNullOrWhiteSpace(OpenCodeKeyBox2.Text) ? null : OpenCodeKeyBox2.Text;
         await RunTestAsync(TestOcBtn, OcTestResult, async () =>
         {
-            using var provider = new OpenCodeUsageProvider(key);
-            var snapshot = await provider.GetUsageAsync(CancellationToken.None);
-            if (!snapshot.IsAvailable)
-                return (false, "✗ " + (snapshot.Error ?? "暂不可用"));
-            string summary = string.Join(" · ", snapshot.Windows.Select(window =>
-                $"{OpenCodeUsageFormatter.ShortLabelOf(window.Kind)} {window.RemainingPercent}%"));
-            return (true, "✓ 连接成功" + (summary.Length == 0 ? string.Empty : " · " + summary));
+            async Task<string> TestKeyAsync(string? key)
+            {
+                using var provider = new OpenCodeUsageProvider(key);
+                var snapshot = await provider.GetUsageAsync(CancellationToken.None);
+                if (!snapshot.IsAvailable)
+                    return "✗ " + (snapshot.Error ?? "暂不可用");
+                string summary = string.Join(" · ", snapshot.Windows.Select(window =>
+                    $"{OpenCodeUsageFormatter.ShortLabelOf(window.Kind)} {window.RemainingPercent}%"));
+                return "✓ 连接成功" + (summary.Length == 0 ? string.Empty : " · " + summary);
+            }
+
+            if (key2 is null)
+                return (true, await TestKeyAsync(key1));
+            string result1 = await TestKeyAsync(key1);
+            string result2 = await TestKeyAsync(key2);
+            bool ok = result1.StartsWith('✓') && result2.StartsWith('✓');
+            return (ok, $"账号1 {result1}｜账号2 {result2}");
         });
     }
 
@@ -311,7 +333,7 @@ public partial class SettingsWindow : Window
     private static void SetTestResult(TextBlock result, bool? ok, string message)
     {
         result.Text = message;
-        result.Foreground = ThemeBrush(ok switch
+        result.Foreground = ThemeBrush(result, ok switch
         {
             true => "PeakSuccessBrush",
             false => "PeakWarningBrush",
@@ -385,6 +407,7 @@ public partial class SettingsWindow : Window
             // 控件属性只能在 UI 线程读取，先取快照再交给后台线程。
             string? apiKey = _clearKey ? null : ApiKeyBox.Text;
             string? openCodeKey = _clearOpenCodeKey ? null : OpenCodeKeyBox.Text;
+            string? openCodeKey2 = _clearOpenCodeKey2 ? null : OpenCodeKeyBox2.Text;
             string? openRouterKey = _clearOpenRouterKey ? null : OpenRouterKeyBox.Text;
             string currency = CurrencyBox.SelectedIndex == 1 ? "USD" : "CNY";
             bool enableDs = EnableDsCheck.IsChecked == true;
@@ -423,6 +446,10 @@ public partial class SettingsWindow : Window
                     _configService.SetOpenCodeApiKey(_config, null);
                 else if (!string.IsNullOrWhiteSpace(openCodeKey))
                     _configService.SetOpenCodeApiKey(_config, openCodeKey);
+                if (_clearOpenCodeKey2)
+                    _configService.SetOpenCodeApiKey2(_config, null);
+                else if (!string.IsNullOrWhiteSpace(openCodeKey2))
+                    _configService.SetOpenCodeApiKey2(_config, openCodeKey2);
                 if (_clearOpenRouterKey)
                     _configService.SetOpenRouterApiKey(_config, null);
                 else if (!string.IsNullOrWhiteSpace(openRouterKey))
@@ -496,7 +523,12 @@ public partial class SettingsWindow : Window
 
     private void ShowError(string message) => ErrorText.Text = message;
 
-    private static IBrush ThemeBrush(string key) =>
-        Application.Current?.FindResource(key) as IBrush
-        ?? throw new InvalidOperationException($"Missing theme resource '{key}'.");
+    /// <summary>
+    /// 从控件作用域解析主题画刷（能正确处理 ThemeDictionaries 的明暗变体）；
+    /// 找不到时回退灰色——缺资源绝不让应用崩溃。
+    /// </summary>
+    private static IBrush ThemeBrush(Avalonia.Visual scope, string key) =>
+        (scope.FindResource(key) as IBrush)
+        ?? (Application.Current?.FindResource(key) as IBrush)
+        ?? Brushes.Gray;
 }

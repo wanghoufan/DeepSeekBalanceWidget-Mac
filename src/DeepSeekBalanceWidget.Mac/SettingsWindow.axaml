@@ -195,9 +195,15 @@
                              Text="留空则自动读本机 auth.json" />
                   <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center">
                     <TextBox x:Name="OpenCodeKeyBox" Classes="input"
-                             Watermark="留空会保留已保存的 Key" PasswordChar="●" />
-                    <Button Grid.Column="1" Content="清除 Key" Classes="danger" Margin="8,0,0,0"
-                            Click="ClearOpenCodeKey_Click" ToolTip.Tip="清除 OpenCode API Key" />
+                             Watermark="账号1：留空保留已保存的 Key" PasswordChar="●" />
+                    <Button Grid.Column="1" Content="清除" Classes="danger" Margin="8,0,0,0"
+                            Click="ClearOpenCodeKey_Click" ToolTip.Tip="清除 OpenCode 账号1 API Key" />
+                  </Grid>
+                  <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center">
+                    <TextBox x:Name="OpenCodeKeyBox2" Classes="input"
+                             Watermark="账号2（可选）：留空保留已保存的 Key" PasswordChar="●" />
+                    <Button Grid.Column="1" Content="清除" Classes="danger" Margin="8,0,0,0"
+                            Click="ClearOpenCodeKey2_Click" ToolTip.Tip="清除 OpenCode 账号2 API Key" />
                   </Grid>
                   <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,2,0,0">
                     <Button x:Name="TestOcBtn" Content="测试连接" Classes="secondary"

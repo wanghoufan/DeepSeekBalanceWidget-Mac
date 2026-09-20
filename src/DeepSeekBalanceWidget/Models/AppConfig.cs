@@ -34,6 +34,9 @@ public sealed class AppConfig
     /// <summary>OpenCode Go API Key（DPAPI 加密存储）；为空时自动读本机 auth.json。</summary>
     public string? OpenCodeApiKeyEncrypted { get; set; }
 
+    /// <summary>OpenCode Go 第二账号 API Key（DPAPI 加密存储）；为空时不显示第二账号。</summary>
+    public string? OpenCodeApiKey2Encrypted { get; set; }
+
     /// <summary>OpenRouter 账户额度监测开关（当前为预留数据源，默认关闭）。</summary>
     public bool EnableOpenRouterMonitoring { get; set; }
 

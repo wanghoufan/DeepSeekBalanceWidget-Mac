@@ -44,10 +44,12 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _autoHideTimer;
     private readonly ICodexAccountsUsageProvider _codexProvider = new MacCodexUsageProvider();
     private IOpenCodeUsageProvider _openCodeProvider;
+    private IOpenCodeUsageProvider? _openCodeProvider2;
     private IOpenRouterUsageProvider _openRouterProvider;
     private readonly CancellationTokenSource _cancellation = new();
     private IBalanceProvider _provider;
     private MacMenuBarBalance? _menuBarBalance;
+    private MacMenuBarBalance? _menuBarBalanceOc2;
     private ParsedBalance? _latestBalance;
     private string _menuBarBalanceText = "¥ --";
     private string _menuBarBalanceTooltip = "DeepSeek 余额监控：正在读取余额";
@@ -55,6 +57,8 @@ public partial class MainWindow : Window
     private string _menuBarCodexTooltip = "ChatGPT Plus：正在读取额度";
     private string _menuBarOpenCodeText = "--";
     private string _menuBarOpenCodeTooltip = "OpenCode Go：正在读取额度";
+    private string _menuBarOpenCodeText2 = "--";
+    private string _menuBarOpenCodeTooltip2 = "OpenCode Go 账号2：正在读取额度";
     private string _menuBarOpenRouterText = "--";
     private string _menuBarOpenRouterTooltip = "OpenRouter：正在读取额度";
     private string _menuBarPeakText = "谷";
@@ -74,6 +78,7 @@ public partial class MainWindow : Window
     private DockEdge _dockEdge;
     private readonly CodexQuotaAlertEvaluator _codexQuotaAlerts = new();
     private readonly OpenCodeQuotaAlertEvaluator _openCodeQuotaAlerts = new();
+    private readonly OpenCodeQuotaAlertEvaluator _openCodeQuotaAlerts2 = new();
     private IReadOnlyList<CodexAccountUsageSnapshot> _lastCodexAccounts = Array.Empty<CodexAccountUsageSnapshot>();
     private bool _gptRecoveryFlashActive;
     private readonly DispatcherTimer _gptRecoveryTimer;
@@ -96,6 +101,7 @@ public partial class MainWindow : Window
         _config = config;
         _provider = provider;
         _openCodeProvider = new OpenCodeUsageProvider(_configService.GetOpenCodeApiKey());
+        _openCodeProvider2 = CreateOpenCodeProvider2();
         _openRouterProvider = new OpenRouterUsageProvider(_configService.GetOpenRouterApiKey());
 
         ApplyAlwaysOnTop(_config.IsAlwaysOnTop);
@@ -148,6 +154,9 @@ public partial class MainWindow : Window
         // constructor, so reapply the configured level once it is opened.
         ApplyNativeWindowLevel(_config.IsAlwaysOnTop);
         RestorePosition();
+        // 先创建 OC2 状态项再创建主项：macOS 把后创建的状态项插到左边，
+        // 这样主项在左、OC2 在右，两段数据挨在一起。
+        _menuBarBalanceOc2 ??= MacMenuBarBalance.Create(RestoreAndActivate);
         _menuBarBalance ??= MacMenuBarBalance.Create(RestoreAndActivate);
         RefreshMenuBar();
         RefreshPeakStatus();
@@ -305,6 +314,8 @@ public partial class MainWindow : Window
             _provider = new DeepSeekApiClient(_configService.GetApiKey() ?? string.Empty);
         if (_openCodeProvider is IDisposable disposable) disposable.Dispose();
         _openCodeProvider = new OpenCodeUsageProvider(_configService.GetOpenCodeApiKey());
+        if (_openCodeProvider2 is IDisposable disposableOc2) disposableOc2.Dispose();
+        _openCodeProvider2 = CreateOpenCodeProvider2();
         if (_openRouterProvider is IDisposable disposableOr) disposableOr.Dispose();
         _openRouterProvider = new OpenRouterUsageProvider(_configService.GetOpenRouterApiKey());
         RefreshPeakStatus();
@@ -517,9 +528,10 @@ public partial class MainWindow : Window
     /// <summary>
     /// 评估 OpenCode 额度预警：只播报低量预警，不做恢复提醒（消耗量小，无需打扰）。
     /// </summary>
-    private void RaiseOpenCodeQuotaAlerts(OpenCodeUsageSnapshot snapshot)
+    private void RaiseOpenCodeQuotaAlerts(OpenCodeUsageSnapshot snapshot,
+        OpenCodeQuotaAlertEvaluator? evaluator = null, string accountPrefix = "")
     {
-        foreach (var alert in _openCodeQuotaAlerts.Evaluate(snapshot, _config, DateTimeOffset.Now))
+        foreach (var alert in (evaluator ?? _openCodeQuotaAlerts).Evaluate(snapshot, _config, DateTimeOffset.Now))
         {
             if (alert.IsRecovery) continue;
             if (!_config.ShowToastNotifications) continue;
@@ -530,7 +542,7 @@ public partial class MainWindow : Window
                 ? $"预计 {resetsAt.ToLocalTime():MM-dd HH:mm} 恢复"
                 : "恢复时间未知";
             MacToastService.Show(
-                $"OpenCode · {alert.WindowLabel}仅剩 {alert.RemainingPercent}%",
+                $"{accountPrefix}{alert.WindowLabel}仅剩 {alert.RemainingPercent}%",
                 $"{usedHint}{resetHint}", _config, ToastAlertStyle.Alarm);
         }
     }
@@ -605,6 +617,10 @@ public partial class MainWindow : Window
         try
         {
             ApplyOpenCodeUsage(await _openCodeProvider.GetUsageAsync(_cancellation.Token));
+            if (_openCodeProvider2 is { } provider2)
+                ApplyOpenCodeUsage2(await provider2.GetUsageAsync(_cancellation.Token));
+            else
+                ClearOpenCodeAccount2();
             UpdateRefreshTime();
             RefreshMenuBar();
         }
@@ -612,10 +628,57 @@ public partial class MainWindow : Window
         catch
         {
             ApplyOpenCodeUsage(OpenCodeUsageSnapshot.Unavailable("刷新失败"));
+            ClearOpenCodeAccount2();
             UpdateRefreshTime();
             RefreshMenuBar();
         }
         finally { _openCodeRefreshing = false; }
+    }
+
+    /// <summary>第二账号 Provider：仅在用户配置了账号2 Key 时存在。</summary>
+    private IOpenCodeUsageProvider? CreateOpenCodeProvider2()
+    {
+        string? key2 = _configService.GetOpenCodeApiKey2();
+        return string.IsNullOrWhiteSpace(key2) ? null : new OpenCodeUsageProvider(key2);
+    }
+
+    private void ApplyOpenCodeUsage2(OpenCodeUsageSnapshot snapshot)
+    {
+        MiniOpenCodeCard2.IsVisible = true;
+        var byKind = snapshot.Windows.ToDictionary(window => window.Kind);
+        if (!snapshot.IsAvailable)
+        {
+            MiniOc2Label.Foreground = ThemeBrush("WarningBrush");
+            ApplyOpenCodeRow(null, MiniOc2FivePct, MiniOc2FiveCd, MiniOc2FiveBarFill);
+            ApplyOpenCodeRow(null, MiniOc2WeeklyPct, MiniOc2WeeklyCd, MiniOc2WeeklyBarFill);
+            ApplyOpenCodeRow(null, MiniOc2MonthlyPct, MiniOc2MonthlyCd, MiniOc2MonthlyBarFill, monthly: true);
+            _menuBarOpenCodeText2 = "--";
+            _menuBarOpenCodeTooltip2 = "OpenCode Go 账号2：" + (snapshot.Error ?? "暂不可用");
+            RefreshMenuBar();
+            return;
+        }
+
+        MiniOc2Label.Foreground = ThemeBrush("TextMainBrush");
+        ApplyOpenCodeRow(byKind.GetValueOrDefault("rolling"), MiniOc2FivePct, MiniOc2FiveCd, MiniOc2FiveBarFill);
+        ApplyOpenCodeRow(byKind.GetValueOrDefault("weekly"), MiniOc2WeeklyPct, MiniOc2WeeklyCd, MiniOc2WeeklyBarFill);
+        ApplyOpenCodeRow(byKind.GetValueOrDefault("monthly"), MiniOc2MonthlyPct, MiniOc2MonthlyCd, MiniOc2MonthlyBarFill, monthly: true);
+        RaiseOpenCodeQuotaAlerts(snapshot, _openCodeQuotaAlerts2, "OpenCode 账号2 · ");
+
+        // 详情卡追加账号2 的行：与账号1 之间空一行分组。
+        string detail = string.Join(Environment.NewLine, snapshot.Windows.Select(window =>
+            $"账号2 {OpenCodeUsageFormatter.ShortLabelOf(window.Kind)}：剩余 {window.RemainingPercent}% · 恢复 {OpenCodeUsageFormatter.FormatCountdown(window, DateTimeOffset.Now)}"));
+        OpenCodeText.Text = (OpenCodeText.Text ?? string.Empty)
+            + Environment.NewLine + Environment.NewLine + detail;
+        _menuBarOpenCodeText2 = snapshot.Windows.Count == 0
+            ? "--"
+            : "OC2 " + string.Join("/", snapshot.Windows.Select(w => w.RemainingPercent)) + "%";
+        _menuBarOpenCodeTooltip2 = detail;
+        RefreshMenuBar();
+    }
+
+    private void ClearOpenCodeAccount2()
+    {
+        MiniOpenCodeCard2.IsVisible = false;
     }
 
     private void ApplyOpenCodeUsage(OpenCodeUsageSnapshot snapshot)
@@ -633,19 +696,20 @@ public partial class MainWindow : Window
         }
 
         OpenCodeTitleText.Text = "OpenCode Go 额度";
+        string prefix = _openCodeProvider2 is not null ? "账号1 " : string.Empty;
         OpenCodeText.Text = string.Join(Environment.NewLine, snapshot.Windows.Select(window =>
-            $"{OpenCodeUsageFormatter.ShortLabelOf(window.Kind)}：剩余 {window.RemainingPercent}% · 恢复 {OpenCodeUsageFormatter.FormatCountdown(window, DateTimeOffset.Now)}"));
+            $"{prefix}{OpenCodeUsageFormatter.ShortLabelOf(window.Kind)}：剩余 {window.RemainingPercent}% · 恢复 {OpenCodeUsageFormatter.FormatCountdown(window, DateTimeOffset.Now)}"));
         MiniOcLabel.Foreground = ThemeBrush("TextMainBrush");
         var byKind = snapshot.Windows.ToDictionary(window => window.Kind);
         ApplyOpenCodeRow(byKind.GetValueOrDefault("rolling"), MiniOcFivePct, MiniOcFiveCd, MiniOcFiveBarFill);
         ApplyOpenCodeRow(byKind.GetValueOrDefault("weekly"), MiniOcWeeklyPct, MiniOcWeeklyCd, MiniOcWeeklyBarFill);
-        ApplyOpenCodeRow(byKind.GetValueOrDefault("monthly"), MiniOcMonthlyPct, MiniOcMonthlyCd, MiniOcMonthlyBarFill);
+        ApplyOpenCodeRow(byKind.GetValueOrDefault("monthly"), MiniOcMonthlyPct, MiniOcMonthlyCd, MiniOcMonthlyBarFill, monthly: true);
         _menuBarOpenCodeText = snapshot.Windows.Count == 0 ? "--" : string.Join("/", snapshot.Windows.Select(w => w.RemainingPercent)) + "%";
         _menuBarOpenCodeTooltip = OpenCodeText.Text ?? string.Empty;
         RaiseOpenCodeQuotaAlerts(snapshot);
     }
 
-    private static void ApplyOpenCodeRow(OpenCodeUsageWindow? window, TextBlock pct, TextBlock countdown, Border barFill)
+    private static void ApplyOpenCodeRow(OpenCodeUsageWindow? window, TextBlock pct, TextBlock countdown, Border barFill, bool monthly = false)
     {
         if (window is null)
         {
@@ -654,7 +718,9 @@ public partial class MainWindow : Window
             return;
         }
         pct.Text = $"{window.RemainingPercent}%";
-        countdown.Text = OpenCodeUsageFormatter.FormatCountdownShort(window, DateTimeOffset.Now);
+        countdown.Text = monthly
+            ? OpenCodeUsageFormatter.FormatMonthlyDays(window, DateTimeOffset.Now)
+            : OpenCodeUsageFormatter.FormatCountdownShort(window, DateTimeOffset.Now);
         const double maximum = 100d;
         var value = Math.Clamp(window.RemainingPercent, 0, maximum);
         barFill.Width = value / maximum * 34d;
@@ -670,7 +736,7 @@ public partial class MainWindow : Window
     {
         ApplyOpenCodeRow(null, MiniOcFivePct, MiniOcFiveCd, MiniOcFiveBarFill);
         ApplyOpenCodeRow(null, MiniOcWeeklyPct, MiniOcWeeklyCd, MiniOcWeeklyBarFill);
-        ApplyOpenCodeRow(null, MiniOcMonthlyPct, MiniOcMonthlyCd, MiniOcMonthlyBarFill);
+        ApplyOpenCodeRow(null, MiniOcMonthlyPct, MiniOcMonthlyCd, MiniOcMonthlyBarFill, monthly: true);
     }
 
     private async Task RefreshOpenRouterAsync()
@@ -918,8 +984,11 @@ public partial class MainWindow : Window
         _cancellation.Dispose();
         _menuBarBalance?.Dispose();
         _menuBarBalance = null;
+        _menuBarBalanceOc2?.Dispose();
+        _menuBarBalanceOc2 = null;
         if (_codexProvider is IDisposable codex) codex.Dispose();
         if (_openCodeProvider is IDisposable openCode) openCode.Dispose();
+        if (_openCodeProvider2 is IDisposable openCode2) openCode2.Dispose();
         if (_openRouterProvider is IDisposable openRouter) openRouter.Dispose();
         Debug.WriteLine($"[DockLifecycle] OnClosing exit shutdown reason={e.CloseReason} visible={IsVisible}");
         Console.Error.WriteLine($"[DockLifecycle] OnClosing exit shutdown reason={e.CloseReason} visible={IsVisible}");
@@ -1034,7 +1103,7 @@ public partial class MainWindow : Window
             if (_config.ShowPeakIndicator) titleParts.Add(_menuBarPeakText);
         }
         if (_config.EnableCodexMonitoring) titleParts.Add("GPT " + _menuBarCodexText);
-        if (_config.EnableOpenCodeMonitoring) titleParts.Add("OC " + _menuBarOpenCodeText);
+        if (_config.EnableOpenCodeMonitoring) titleParts.Add("OC1 " + _menuBarOpenCodeText);
         if (_config.EnableOpenRouterMonitoring) titleParts.Add("OR " + _menuBarOpenRouterText);
         if (_config.EnableWorkbuddyMonitoring) titleParts.Add("WB --");
         if (titleParts.Count == 0) titleParts.Add("额度监测已关闭");
@@ -1045,6 +1114,18 @@ public partial class MainWindow : Window
         if (_config.EnableOpenRouterMonitoring) tooltipParts.Add("OpenRouter：" + _menuBarOpenRouterTooltip);
         if (_config.EnableWorkbuddyMonitoring) tooltipParts.Add("WorkBuddy：暂无额度数据源");
         _menuBarBalance?.Update(string.Join(" · ", titleParts), string.Join(Environment.NewLine, tooltipParts));
+
+        // 账号2 独立状态项：配置了第二把 Key 才显示。
+        if (_config.EnableOpenCodeMonitoring && _openCodeProvider2 is not null)
+        {
+            _menuBarBalanceOc2 ??= MacMenuBarBalance.Create(RestoreAndActivate);
+            _menuBarBalanceOc2?.Update(_menuBarOpenCodeText2, _menuBarOpenCodeTooltip2);
+        }
+        else if (_menuBarBalanceOc2 is { } oc2Item)
+        {
+            oc2Item.Dispose();
+            _menuBarBalanceOc2 = null;
+        }
     }
 
     private static string FormatAccount(CodexAccountUsageSnapshot account)

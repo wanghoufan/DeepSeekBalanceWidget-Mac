@@ -13,6 +13,7 @@ public sealed class MacConfigService
 {
     private const string KeychainService = "com.deepseekbalancewidget.api-key";
     private const string OpenCodeKeychainService = "com.deepseekbalancewidget.opencode-api-key";
+    private const string OpenCodeKeychainService2 = "com.deepseekbalancewidget.opencode-api-key-2";
     private const string OpenRouterKeychainService = "com.deepseekbalancewidget.openrouter-api-key";
     private const string KeychainAccount = "default";
 
@@ -71,6 +72,13 @@ public sealed class MacConfigService
             && HasKeychainEntry(OpenCodeKeychainService))
         {
             config.OpenCodeApiKeyEncrypted = "keychain";
+            repaired = true;
+        }
+
+        if (string.IsNullOrWhiteSpace(config.OpenCodeApiKey2Encrypted)
+            && HasKeychainEntry(OpenCodeKeychainService2))
+        {
+            config.OpenCodeApiKey2Encrypted = "keychain";
             repaired = true;
         }
 
@@ -168,6 +176,35 @@ public sealed class MacConfigService
 
             // Keep the Keychain write and its config marker in one serialized
             // operation so a caller cannot persist a key without its marker.
+            Save(config);
+        }
+    }
+
+    /// <summary>OpenCode Go 第二账号 Key 的 macOS 存储，机制与第一账号相同。</summary>
+    public string? GetOpenCodeApiKey2()
+    {
+        if (!string.Equals(_lastConfig?.OpenCodeApiKey2Encrypted, "keychain", StringComparison.Ordinal))
+            return null;
+
+        return RunSecurity("find-generic-password", "-s", OpenCodeKeychainService2, "-a", KeychainAccount, "-w")
+            ?.TrimEnd('\r', '\n');
+    }
+
+    public void SetOpenCodeApiKey2(AppConfig config, string? value)
+    {
+        lock (_writeLock)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                RunSecurity("delete-generic-password", "-s", OpenCodeKeychainService2, "-a", KeychainAccount);
+                config.OpenCodeApiKey2Encrypted = null;
+            }
+            else
+            {
+                WriteKeychainValue(OpenCodeKeychainService2, value);
+                config.OpenCodeApiKey2Encrypted = "keychain";
+            }
+
             Save(config);
         }
     }
