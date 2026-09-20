@@ -1,5 +1,7 @@
 # DeepSeek Balance Widget（macOS 版）
 
+> 简体中文 | [English](README.en.md)
+
 > ⚠️ **本仓库只维护 macOS 端**（Avalonia / .NET 8）。Windows（WPF）端已拆分为**独立仓库**，此处不再维护，Windows 相关改动请提交到 Windows 仓库。
 >
 > DeepSeek 余额 & ChatGPT Plus 用量监控桌面悬浮窗 · macOS 12+ · 基于 .NET 8
@@ -81,6 +83,8 @@ bash scripts/install-macos.sh arm64
 - **OpenCode Go 额度监测**（替代原 WorkBuddy 占位）：读取官方用量接口，5 小时 / 周 / 月三窗口全量展示，胶囊内每行含剩余百分比、距恢复倒计时与进度条
 - **预警系统重构**：低量预警改为常驻弹窗 + 循环警报声，需点击「知道了」关闭，位置可配（默认右上角）；OpenCode 只保留低量预警、不播报恢复
 - **设置页改版**：左侧导航 + 监测项 2×2 卡片，各项独立开关与「测试连接」行式布局
+
+**开发中（未发布）**：OpenCode Go **双账号监测**（胶囊 OC1/OC2 并排迷你卡、菜单栏独立 OC2 状态项、详情卡分组显示）、胶囊月额度恢复天数（月行纯天数显示）、设置保存稳定性修复——详见 [CHANGELOG.md](CHANGELOG.md)「未发布」章节。
 
 详见 [CHANGELOG.md](CHANGELOG.md)。
 
