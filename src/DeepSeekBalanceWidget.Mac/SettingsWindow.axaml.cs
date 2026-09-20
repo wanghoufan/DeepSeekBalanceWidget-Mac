@@ -319,18 +319,18 @@ public partial class SettingsWindow : Window
         });
     }
 
-    private void ApplyBtn_Click(object? sender, RoutedEventArgs e)
+    private async void ApplyBtn_Click(object? sender, RoutedEventArgs e)
     {
-        ApplyChanges();
+        await ApplyChangesAsync();
     }
 
-    private void Save_Click(object? sender, RoutedEventArgs e)
+    private async void Save_Click(object? sender, RoutedEventArgs e)
     {
-        if (ApplyChanges())
+        if (await ApplyChangesAsync())
             Close(true);
     }
 
-    private bool ApplyChanges()
+    private async Task<bool> ApplyChangesAsync()
     {
         if (!int.TryParse(IntervalBox.Text, NumberStyles.Integer, CultureInfo.CurrentCulture, out int interval)
             || interval is < 5 or > 3600)
@@ -382,58 +382,89 @@ public partial class SettingsWindow : Window
 
         try
         {
-            // 空框保留已保存的 Key；显式清除请使用对应输入框旁的「清除 Key」。
-            if (_clearKey)
-                _configService.SetApiKey(_config, null);
-            else if (!string.IsNullOrWhiteSpace(ApiKeyBox.Text))
-                _configService.SetApiKey(_config, ApiKeyBox.Text);
-            if (_clearOpenCodeKey)
-                _configService.SetOpenCodeApiKey(_config, null);
-            else if (!string.IsNullOrWhiteSpace(OpenCodeKeyBox.Text))
-                _configService.SetOpenCodeApiKey(_config, OpenCodeKeyBox.Text);
-            if (_clearOpenRouterKey)
-                _configService.SetOpenRouterApiKey(_config, null);
-            else if (!string.IsNullOrWhiteSpace(OpenRouterKeyBox.Text))
-                _configService.SetOpenRouterApiKey(_config, OpenRouterKeyBox.Text);
-
-            _config.RefreshIntervalSeconds = interval;
-            _config.LowBalanceThreshold = threshold;
-            _config.AbnormalChangePercent = percentage;
-            _config.SelectedCurrency = CurrencyBox.SelectedIndex == 1 ? "USD" : "CNY";
-            _config.EnableDeepSeekMonitoring = EnableDsCheck.IsChecked == true;
-            _config.EnableCodexMonitoring = EnableCodexCheck.IsChecked == true;
-            _config.EnableWorkbuddyMonitoring = EnableWbCheck.IsChecked == true;
-            _config.EnableOpenCodeMonitoring = EnableOcCheck.IsChecked == true;
-            _config.EnableOpenRouterMonitoring = EnableOpenRouterCheck.IsChecked == true;
-
-            _config.EnableCodexQuotaAlerts = EnableGptAlerts.IsChecked == true;
-            _config.GptQuotaAlertThresholds = gptThresholds;
-            _config.GptQuotaRecoveredPercent = gptRecovered;
-            _config.GptWeeklyAlertEnabled = GptWeeklyCheck.IsChecked == true;
-            _config.EnableOpenCodeQuotaAlerts = EnableOcAlerts.IsChecked == true;
-            _config.OcQuotaAlertThresholds = ocThresholds;
-            _config.OcQuotaRecoveredPercent = ocRecovered;
-            _config.OcWeeklyAlertEnabled = OcWeeklyCheck.IsChecked == true;
-            _config.OcMonthlyAlertEnabled = OcMonthlyCheck.IsChecked == true;
-            _config.AlertSoundEnabled = AlertSoundCheck.IsChecked == true;
-            _config.AlertSoundStyle = ((AlertSoundStyleBox.SelectedItem as ComboBoxItem)?.Tag?.ToString())
-                ?? "Standard";
-            _config.AlertMode = AlertLimitedRadio.IsChecked == true ? "Limited" : "Continuous";
-            _config.AlertPosition = ((AlertPositionBox.SelectedItem as ComboBoxItem)?.Tag?.ToString())
-                ?? "TopRight";
-
-            _config.IsAlwaysOnTop = TopmostCheck.IsChecked == true;
-            _config.ShowPeakIndicator = ShowPeakCheck.IsChecked == true;
-            _config.UseMiniMode = MiniModeCheck.IsChecked == true;
-            _config.ThemeMode = ThemeDarkRadio.IsChecked == true
+            // 控件属性只能在 UI 线程读取，先取快照再交给后台线程。
+            string? apiKey = _clearKey ? null : ApiKeyBox.Text;
+            string? openCodeKey = _clearOpenCodeKey ? null : OpenCodeKeyBox.Text;
+            string? openRouterKey = _clearOpenRouterKey ? null : OpenRouterKeyBox.Text;
+            string currency = CurrencyBox.SelectedIndex == 1 ? "USD" : "CNY";
+            bool enableDs = EnableDsCheck.IsChecked == true;
+            bool enableCodex = EnableCodexCheck.IsChecked == true;
+            bool enableWb = EnableWbCheck.IsChecked == true;
+            bool enableOc = EnableOcCheck.IsChecked == true;
+            bool enableOpenRouter = EnableOpenRouterCheck.IsChecked == true;
+            bool enableGptAlerts = EnableGptAlerts.IsChecked == true;
+            bool gptWeekly = GptWeeklyCheck.IsChecked == true;
+            bool enableOcAlerts = EnableOcAlerts.IsChecked == true;
+            bool ocWeekly = OcWeeklyCheck.IsChecked == true;
+            bool ocMonthly = OcMonthlyCheck.IsChecked == true;
+            bool alertSound = AlertSoundCheck.IsChecked == true;
+            string alertSoundStyle = (AlertSoundStyleBox.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "Standard";
+            bool alertLimited = AlertLimitedRadio.IsChecked == true;
+            string alertPosition = (AlertPositionBox.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "TopRight";
+            bool alwaysOnTop = TopmostCheck.IsChecked == true;
+            bool showPeak = ShowPeakCheck.IsChecked == true;
+            bool miniMode = MiniModeCheck.IsChecked == true;
+            string themeMode = ThemeDarkRadio.IsChecked == true
                 ? "Dark"
                 : ThemeSystemRadio.IsChecked == true ? "System" : "Light";
-            ThemeService.Apply(_config.ThemeMode);
-            _config.UseMockData = MockCheck.IsChecked == true;
-            _config.AutoStart = AutoStartCheck.IsChecked == true;
+            bool useMock = MockCheck.IsChecked == true;
+            bool autoStart = AutoStartCheck.IsChecked == true;
 
-            MacAutoStartService.Set(_config.AutoStart);
-            _configService.Save(_config);
+            // 钥匙串写入、启动项与配置落盘都涉及进程/磁盘 IO，放到后台线程，
+            // 避免 security 等待授权确认时把 UI 线程一起挂死。
+            await Task.Run(() =>
+            {
+                // 空框保留已保存的 Key；显式清除请使用对应输入框旁的「清除 Key」。
+                if (_clearKey)
+                    _configService.SetApiKey(_config, null);
+                else if (!string.IsNullOrWhiteSpace(apiKey))
+                    _configService.SetApiKey(_config, apiKey);
+                if (_clearOpenCodeKey)
+                    _configService.SetOpenCodeApiKey(_config, null);
+                else if (!string.IsNullOrWhiteSpace(openCodeKey))
+                    _configService.SetOpenCodeApiKey(_config, openCodeKey);
+                if (_clearOpenRouterKey)
+                    _configService.SetOpenRouterApiKey(_config, null);
+                else if (!string.IsNullOrWhiteSpace(openRouterKey))
+                    _configService.SetOpenRouterApiKey(_config, openRouterKey);
+
+                _config.RefreshIntervalSeconds = interval;
+                _config.LowBalanceThreshold = threshold;
+                _config.AbnormalChangePercent = percentage;
+                _config.SelectedCurrency = currency;
+                _config.EnableDeepSeekMonitoring = enableDs;
+                _config.EnableCodexMonitoring = enableCodex;
+                _config.EnableWorkbuddyMonitoring = enableWb;
+                _config.EnableOpenCodeMonitoring = enableOc;
+                _config.EnableOpenRouterMonitoring = enableOpenRouter;
+
+                _config.EnableCodexQuotaAlerts = enableGptAlerts;
+                _config.GptQuotaAlertThresholds = gptThresholds;
+                _config.GptQuotaRecoveredPercent = gptRecovered;
+                _config.GptWeeklyAlertEnabled = gptWeekly;
+                _config.EnableOpenCodeQuotaAlerts = enableOcAlerts;
+                _config.OcQuotaAlertThresholds = ocThresholds;
+                _config.OcQuotaRecoveredPercent = ocRecovered;
+                _config.OcWeeklyAlertEnabled = ocWeekly;
+                _config.OcMonthlyAlertEnabled = ocMonthly;
+                _config.AlertSoundEnabled = alertSound;
+                _config.AlertSoundStyle = alertSoundStyle;
+                _config.AlertMode = alertLimited ? "Limited" : "Continuous";
+                _config.AlertPosition = alertPosition;
+
+                _config.IsAlwaysOnTop = alwaysOnTop;
+                _config.ShowPeakIndicator = showPeak;
+                _config.UseMiniMode = miniMode;
+                _config.ThemeMode = themeMode;
+                _config.UseMockData = useMock;
+                _config.AutoStart = autoStart;
+
+                MacAutoStartService.Set(_config.AutoStart);
+                _configService.Save(_config);
+            });
+
+            // 以下均为 UI 操作，回到 UI 线程执行。
+            ThemeService.Apply(_config.ThemeMode);
             _onApplied?.Invoke();
             ErrorText.Text = string.Empty;
             return true;

@@ -481,9 +481,16 @@ public partial class MainWindow : Window
         bool toastsEnabled = _config.ShowToastNotifications;
         foreach (var alert in _codexQuotaAlerts.Evaluate(accounts, _config, DateTimeOffset.Now))
         {
+            // 日志必须写在弹窗开关判断之前：用户关掉弹窗后仍要留下记录，
+            // 否则无法回溯确认「提醒到底触发过没有」。
             if (alert.IsRecovery)
             {
                 StartGptRecoveryFlash();
+                AlertEventLogger.Write(
+                    AlertEventLogger.KindRecovery,
+                    "GPT",
+                    $"{ShortAccountName(alert.Email)} · {alert.WindowLabel}已恢复",
+                    $"剩余 {alert.RemainingPercent}%（恢复线 {_config.GptQuotaRecoveredPercent}%）");
                 if (!toastsEnabled) continue;
                 MacToastService.Show(
                     $"{ShortAccountName(alert.Email)} · {alert.WindowLabel}已恢复",
@@ -491,10 +498,15 @@ public partial class MainWindow : Window
                 continue;
             }
 
-            if (!toastsEnabled) continue;
             string resetHint = alert.ResetsAt is DateTimeOffset resetsAt
                 ? $"预计 {resetsAt.ToLocalTime():MM-dd HH:mm} 恢复"
                 : "恢复时间未知";
+            AlertEventLogger.Write(
+                AlertEventLogger.KindAlert,
+                "GPT",
+                $"{ShortAccountName(alert.Email)} · {alert.WindowLabel}仅剩 {alert.RemainingPercent}%",
+                resetHint);
+            if (!toastsEnabled) continue;
             MacToastService.Show(
                 $"{ShortAccountName(alert.Email)} · {alert.WindowLabel}仅剩 {alert.RemainingPercent}%",
                 resetHint, _config, ToastAlertStyle.Alarm);

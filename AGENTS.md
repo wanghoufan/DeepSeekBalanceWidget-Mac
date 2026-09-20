@@ -39,8 +39,9 @@ Release 包的 zip 文件名由 git tag（`v*`）决定，README 下载表里 ma
 
 ## 当前状态与下一步
 
-- 当前已发布版本：0.4.0（ChatGPT 双窗口对齐表格、胶囊区块顺序 `AgentOrder`、WorkBuddy 占位）
-- 工作区已提交未发布（见 CHANGELOG「未发布」）：OpenCode Go 额度监测（替代原 WB 占位）、预警系统重构（常驻弹窗 + 循环警报声、位置可配）、设置页改版（左侧导航 + 监测项 2×2 卡片）、胶囊整改（单行宽、按钮贴最右、胶囊刷新时间移除、OC 区块、GPT 列距收紧）与若干修复
+- 当前已发布版本：0.5.0（OpenCode Go 额度监测、预警系统重构、设置页改版、胶囊整改、GPT/OpenCode 额度预警）
+- 未发布（见 CHANGELOG「未发布」）：OpenCode fallback 兼容 `opencode-go` 条目名、设置保存钥匙串异步化 + 15s 超时（修卡死/闪退）、全局未处理异常日志（crash-*.log）、GPT 预警事件日志（`AlertEventLogger`）、Codex 原生凭据刷新
+- 测试工程在 macOS 上不可运行（引用 WPF csproj，缺 WindowsDesktop SDK）；共享代码验证以 `dotnet build src/DeepSeekBalanceWidget.Mac/...` 为准
 - 下一步：① 择机打 `v*` tag 升版本发布——升版须同步 Mac csproj / Info.plist / README 版本号（详见上方「发布前版本一致性」），否则 app 内部版本与 GitHub tag 不符；② 或先补齐 WorkBuddy 实际额度接入；③ 视 Windows 新仓库落地情况，决定是否把 `src/DeepSeekBalanceWidget/`（WPF）从本仓库移除
 
 ## 治理模板已应用

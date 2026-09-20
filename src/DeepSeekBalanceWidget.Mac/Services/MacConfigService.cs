@@ -230,6 +230,9 @@ public sealed class MacConfigService
         catch { }
     }
 
+    /// <summary>security 命令超时。超过说明弹出了钥匙串授权框等待人工确认，不能让 UI 线程永久挂起。</summary>
+    private static readonly TimeSpan SecurityTimeout = TimeSpan.FromSeconds(15);
+
     private static string? RunSecurity(params string[] arguments)
     {
         try
@@ -245,9 +248,13 @@ public sealed class MacConfigService
 
             using var process = Process.Start(startInfo);
             if (process is null) return null;
+            if (!process.WaitForExit(SecurityTimeout))
+            {
+                try { process.Kill(); } catch { /* 已退出的进程无需处理 */ }
+                return null;
+            }
             string output = process.StandardOutput.ReadToEnd();
             process.StandardError.ReadToEnd();
-            process.WaitForExit();
             return process.ExitCode == 0 ? output : null;
         }
         catch { return null; }

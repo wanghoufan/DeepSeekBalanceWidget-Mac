@@ -64,7 +64,12 @@ public sealed class CcSwitchCodexUsageProviderTests
     [Fact]
     public async Task GetUsagesAsync_ReadsBothAccountsAndKeepsLastValuesWhenRefreshFails()
     {
-        string storePath = Path.Combine(Path.GetTempPath(), $"cc-switch-test-{Guid.NewGuid():N}.json");
+        string tempDir = Path.Combine(Path.GetTempPath(), $"cc-switch-test-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+        string storePath = Path.Combine(tempDir, "codex_oauth_auth.json");
+        // Codex 原生凭证路径必须显式指到空目录里：缺省会读真实的 ~/.codex/auth.json，
+        // 把开发者本机的登录账号混进断言（本地 3 个、CI 2 个 → 结果不一致）。
+        string codexAuthPath = Path.Combine(tempDir, "codex-native-absent.json");
         await File.WriteAllTextAsync(storePath, """
         {
           "version": 1,
@@ -89,7 +94,7 @@ public sealed class CcSwitchCodexUsageProviderTests
         {
             var handler = new FakeHandler();
             using var client = new HttpClient(handler);
-            using var provider = new CcSwitchCodexUsageProvider(storePath, client);
+            using var provider = new CcSwitchCodexUsageProvider(storePath, client, codexAuthPath);
 
             var first = await provider.GetUsagesAsync(CancellationToken.None);
 
@@ -117,7 +122,7 @@ public sealed class CcSwitchCodexUsageProviderTests
         }
         finally
         {
-            File.Delete(storePath);
+            if (Directory.Exists(tempDir)) Directory.Delete(tempDir, recursive: true);
         }
     }
 

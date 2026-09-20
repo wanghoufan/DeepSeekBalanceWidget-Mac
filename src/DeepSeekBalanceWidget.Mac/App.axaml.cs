@@ -13,6 +13,7 @@ public partial class App : Application
 
     public override void OnFrameworkInitializationCompleted()
     {
+        RegisterCrashLog();
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             // This is a menu-bar monitor: closing its window must not terminate
@@ -66,5 +67,36 @@ public partial class App : Application
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    /// <summary>
+    /// 未处理异常落到 crash-*.log。此前进程崩溃"无声消失"，既无 .ips 崩溃报告也无日志，
+    /// 排查只能靠猜；有了这份日志，任何未处理异常都能留下完整堆栈。
+    /// </summary>
+    private static void RegisterCrashLog()
+    {
+        void Write(Exception? exception, string source)
+        {
+            if (exception is null) return;
+            try
+            {
+                string directory = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                    "Library", "Application Support", "DeepSeekBalanceWidget");
+                Directory.CreateDirectory(directory);
+                File.AppendAllText(
+                    Path.Combine(directory, "crash-" + DateTime.UtcNow.ToString("yyyyMMdd") + ".log"),
+                    $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {source}\n{exception}\n\n");
+            }
+            catch { /* 日志失败不应再抛出 */ }
+        }
+
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+            Write(e.ExceptionObject as Exception, "AppDomain.UnhandledException (isTerminating=" + e.IsTerminating + ")");
+        TaskScheduler.UnobservedTaskException += (_, e) =>
+        {
+            Write(e.Exception, "TaskScheduler.UnobservedTaskException");
+            e.SetObserved();
+        };
     }
 }

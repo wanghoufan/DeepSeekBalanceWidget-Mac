@@ -94,7 +94,9 @@ public sealed class OpenCodeUsageProvider : IOpenCodeUsageProvider, IDisposable
         {
             if (!File.Exists(path)) return null;
             using var doc = JsonDocument.Parse(File.ReadAllText(path));
-            if (!doc.RootElement.TryGetProperty("opencode", out var entry)) return null;
+            // 本机 OpenCode CLI 写入的条目名是 "opencode-go"，同时兼容 "opencode"。
+            if (!doc.RootElement.TryGetProperty("opencode-go", out var entry)
+                && !doc.RootElement.TryGetProperty("opencode", out entry)) return null;
             // 兼容两种形态：{ "type": "api", "key": "sk-..." } 或直接字符串
             if (entry.ValueKind == JsonValueKind.String)
                 return entry.GetString();
