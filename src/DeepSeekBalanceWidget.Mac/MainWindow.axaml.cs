@@ -618,7 +618,15 @@ public partial class MainWindow : Window
         {
             ApplyOpenCodeUsage(await _openCodeProvider.GetUsageAsync(_cancellation.Token));
             if (_openCodeProvider2 is { } provider2)
-                ApplyOpenCodeUsage2(await provider2.GetUsageAsync(_cancellation.Token));
+            {
+                var snapshot2 = await provider2.GetUsageAsync(_cancellation.Token);
+                // Key 已被撤销（账号已删除）时收回 Provider：菜单栏状态项与详情卡一并消失，
+                // 而不是留一个只显示 "--" 的空壳继续占位。
+                if (IsKeyRejected(snapshot2))
+                    DropOpenCodeAccount2();
+                else
+                    ApplyOpenCodeUsage2(snapshot2);
+            }
             else
                 ClearOpenCodeAccount2();
             UpdateRefreshTime();
@@ -676,9 +684,25 @@ public partial class MainWindow : Window
         RefreshMenuBar();
     }
 
+    /// <summary>Key 被服务端拒绝（账号已删除 / Key 已撤销）：视为该账号不再存在。</summary>
+    private static bool IsKeyRejected(OpenCodeUsageSnapshot snapshot)
+        => !snapshot.IsAvailable && snapshot.Error?.Contains("API Key 无效") == true;
+
+    /// <summary>收回账号2：Provider 置空后 RefreshMenuBar 会一并移除 OC2 状态项。</summary>
+    private void DropOpenCodeAccount2()
+    {
+        if (_openCodeProvider2 is IDisposable disposable) disposable.Dispose();
+        _openCodeProvider2 = null;
+        ClearOpenCodeAccount2();
+    }
+
     private void ClearOpenCodeAccount2()
     {
         MiniOpenCodeCard2.IsVisible = false;
+        // 菜单栏文本一并清空：Provider 已不在时 RefreshMenuBar 会移除状态项，
+        // 但残留文本会在下一次重新配置账号2 时闪出一帧旧数据。
+        _menuBarOpenCodeText2 = string.Empty;
+        _menuBarOpenCodeTooltip2 = string.Empty;
     }
 
     private void ApplyOpenCodeUsage(OpenCodeUsageSnapshot snapshot)

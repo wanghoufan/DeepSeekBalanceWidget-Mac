@@ -48,10 +48,15 @@ public class BalanceParserTests
     }
 
     [Fact]
-    public void Parse_NegativeAmount_Fails()
+    public void Parse_NegativeAmount_Succeeds()
     {
-        var json = """{"is_available":true,"balance_infos":[{"currency":"CNY","total_balance":"-5","granted_balance":"1","topped_up_balance":"2"}]}""";
-        Assert.False(BalanceParser.Parse(json).Success);
+        // 欠费时 DeepSeek 会返回负余额（is_available=false），这是合法数据而非脏数据。
+        var json = """{"is_available":false,"balance_infos":[{"currency":"CNY","total_balance":"-0.71","granted_balance":"0.00","topped_up_balance":"-0.71"}]}""";
+        var r = BalanceParser.Parse(json);
+        Assert.True(r.Success);
+        Assert.Equal(-0.71m, r.Balances[0].Total);
+        Assert.Equal(-0.71m, r.Balances[0].ToppedUp);
+        Assert.False(r.Balances[0].IsAvailable);
     }
 
     [Fact]

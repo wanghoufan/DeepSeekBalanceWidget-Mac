@@ -54,8 +54,12 @@ public static class BalanceParser
         }
     }
 
+    /// <summary>
+    /// 金额解析。允许负数：DeepSeek 在欠费（is_available=false）时会返回负的
+    /// total_balance / topped_up_balance，例如 "-0.71"，这不是非法数据。
+    /// </summary>
     private static bool TryAmount(string s, out decimal value)
         => decimal.TryParse(s,
                NumberStyles.AllowDecimalPoint | NumberStyles.AllowLeadingSign,
-               CultureInfo.InvariantCulture, out value) && value >= 0;
+               CultureInfo.InvariantCulture, out value);
 }
