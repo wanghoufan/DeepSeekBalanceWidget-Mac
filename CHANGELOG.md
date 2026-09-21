@@ -10,6 +10,7 @@
 
 - 新增 **OpenCode Go 双账号监测**：设置页可配置第二把 API Key（独立钥匙串条目 `opencode-api-key-2`），胶囊 OC 区块并排显示 OC1/OC2 两张迷你卡（间距加大、只配一把 Key 时仅显示 OC1），详情卡双账号分组显示（账号1/账号2 前缀 + 空行分组），菜单栏新增独立 OC2 状态项（排在主项右侧，未配置第二把 Key 时自动隐藏）；账号2 预警独立评估
 - 新增 **胶囊月额度恢复天数**：OC 卡月行恢复时间显示纯天数数字（如 `24`），菜单栏主项 OC 标签改为 `OC1`
+- 新增 **菜单栏 GPT 5 小时恢复倒计时**：菜单栏 GPT 段由 `GPT 65/79%` 变为 `GPT 65/79% 4h24m`（倒计时紧跟在百分比右侧）；窗口排序与胶囊 / tooltip 统一为按 `DurationMinutes` 升序，倒计时复用 `CodexUsageFormatter.FormatCountdownShort`，已到期显示 `0m`、不放汉字
 - 新增 **GPT 预警事件日志**（`AlertEventLogger`）：低量预警与恢复提醒在评估触发时即落盘记录（写在弹窗开关判断之前），用户关闭弹窗后仍可回溯「提醒到底触发过没有」
 - 新增 **Codex 原生凭据刷新**（`CcSwitchCodexUsageProvider`）：除 CC Switch 存储外支持读取 Codex 原生 `auth.json` 账号（JWT 解析邮箱），OAuth token 过期自动刷新并原子回写两处存储；配套更新 `CcSwitchCodexUsageProviderTests`
 

@@ -80,7 +80,7 @@ The script opens the app so it registers with Launchpad; afterwards you can star
 - **Alert system rework**: low-quota alerts now use a persistent window + looping siren that must be dismissed via "Got it", with configurable position (top-right by default); OpenCode keeps only the low-quota alert, no recovery notification
 - **Settings redesign**: left navigation + 2×2 monitoring cards, per-item toggles and "Test connection" row layout
 
-**In development (unreleased)**: OpenCode Go **dual-account monitoring** (side-by-side OC1/OC2 mini cards in the capsule, a standalone OC2 menu-bar item, grouped detail card), monthly-quota reset days in the capsule (plain day count), and settings-save stability fixes — see the "Unreleased" section of [CHANGELOG.md](CHANGELOG.md).
+**In development (unreleased)**: OpenCode Go **dual-account monitoring** (side-by-side OC1/OC2 mini cards in the capsule, a standalone OC2 menu-bar item, grouped detail card), monthly-quota reset days in the capsule (plain day count), a GPT 5-hour reset countdown in the menu bar, and settings-save stability fixes — see the "Unreleased" section of [CHANGELOG.md](CHANGELOG.md).
 
 See [CHANGELOG.md](CHANGELOG.md) for the full changelog.
 

@@ -1139,8 +1139,16 @@ public partial class MainWindow : Window
 
     private static string FormatMenuBarCodex(IReadOnlyList<CodexAccountUsageSnapshot> accounts)
     {
-        var windows = accounts.Where(a => a.Usage.IsAvailable).SelectMany(a => a.Usage.Windows).Take(2).ToArray();
-        return windows.Length == 0 ? "--" : string.Join("/", windows.Select(w => w.RemainingPercent)) + "%";
+        var windows = accounts.Where(a => a.Usage.IsAvailable)
+            .SelectMany(a => a.Usage.Windows)
+            .OrderBy(w => w.DurationMinutes ?? int.MaxValue)
+            .Take(2).ToArray();
+        if (windows.Length == 0) return "--";
+        var text = string.Join("/", windows.Select(w => w.RemainingPercent)) + "%";
+        // 5 小时窗口的恢复倒计时（如 4h24m）紧跟百分比之后；菜单栏不放汉字，已到期显示 0m。
+        if (windows[0].ResetsAt is not { } resetsAt) return text;
+        var now = DateTimeOffset.Now;
+        return text + " " + (resetsAt <= now ? "0m" : CodexUsageFormatter.FormatCountdownShort(resetsAt, now));
     }
 
     private static string Symbol(string currency) => currency.Equals("USD", StringComparison.OrdinalIgnoreCase) ? "$" : "¥";
