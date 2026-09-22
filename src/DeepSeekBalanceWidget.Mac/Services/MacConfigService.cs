@@ -250,11 +250,25 @@ public sealed class MacConfigService
         // `security` is the supported Keychain command-line client. It never
         // writes the password to stdout/stderr; passing it as an argument also
         // avoids a shell.
-        if (RunSecurity("add-generic-password", "-U", "-s", service,
-            "-a", KeychainAccount, "-w", value) is null)
+        // `add -U` deletes the old item before creating the new one, and the
+        // delete is not rolled back when the create is denied by the Keychain
+        // authorization dialog. Read the previous value first so a failed write
+        // cannot cost the user a Key they had already saved.
+        string? previous = RunSecurity("find-generic-password", "-s", service,
+            "-a", KeychainAccount, "-w");
+
+        SecurityResult result = RunSecurityChecked("add-generic-password", "-U", "-s", service,
+            "-a", KeychainAccount, "-w", value);
+        if (result.Succeeded) return;
+
+        if (!string.IsNullOrWhiteSpace(previous))
         {
-            throw new InvalidOperationException("无法写入 macOS 钥匙串，请在“钥匙串访问”中检查权限。");
+            RunSecurityChecked("add-generic-password", "-U", "-s", service,
+                "-a", KeychainAccount, "-w", previous.TrimEnd('\r', '\n'));
         }
+
+        throw new InvalidOperationException(
+            $"无法写入 macOS 钥匙串，请在“钥匙串访问”中检查权限。（{(result.Error.Length > 0 ? result.Error : "security 退出码 " + result.ExitCode)}）");
     }
 
     private void TryBackupCorruptFile()
@@ -272,6 +286,14 @@ public sealed class MacConfigService
 
     private static string? RunSecurity(params string[] arguments)
     {
+        SecurityResult result = RunSecurityChecked(arguments);
+        return result.Succeeded ? result.Output : null;
+    }
+
+    private readonly record struct SecurityResult(bool Succeeded, string Output, string Error, int ExitCode);
+
+    private static SecurityResult RunSecurityChecked(params string[] arguments)
+    {
         try
         {
             var startInfo = new ProcessStartInfo("/usr/bin/security")
@@ -284,16 +306,17 @@ public sealed class MacConfigService
             foreach (string argument in arguments) startInfo.ArgumentList.Add(argument);
 
             using var process = Process.Start(startInfo);
-            if (process is null) return null;
+            if (process is null) return new SecurityResult(false, string.Empty, "无法启动 security 命令", -1);
             if (!process.WaitForExit(SecurityTimeout))
             {
                 try { process.Kill(); } catch { /* 已退出的进程无需处理 */ }
-                return null;
+                return new SecurityResult(false, string.Empty,
+                    $"钥匙串操作超过 {SecurityTimeout.TotalSeconds:0} 秒未返回，通常是在等待钥匙串授权弹窗", -1);
             }
             string output = process.StandardOutput.ReadToEnd();
-            process.StandardError.ReadToEnd();
-            return process.ExitCode == 0 ? output : null;
+            string error = process.StandardError.ReadToEnd().Trim();
+            return new SecurityResult(process.ExitCode == 0, output, error, process.ExitCode);
         }
-        catch { return null; }
+        catch (Exception ex) { return new SecurityResult(false, string.Empty, ex.Message, -1); }
     }
 }
