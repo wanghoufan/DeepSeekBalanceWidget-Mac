@@ -38,12 +38,14 @@
 
 Release 包的 zip 文件名由 git tag（`v*`）决定，README 下载表里 macOS 两行的版本号也要同步改。Windows 的 `DeepSeekBalanceWidget.csproj` 版本归 Windows 仓库管，这里不再同步。
 
+发布资产由 `.github/workflows/release-macos.yml` 生成：**push `v*` tag 就会触发 CI 构建 arm64 + x64 两个包并 `gh release upload --clobber` 覆盖同名资产**，所以本地 `release/*.zip` 不是发布物、不必手工上传（手工 `gh release create` 只有正文会保留，资产会被 CI 覆盖）。想自定义 Release 正文，先 `gh release create <tag> --notes-file …` 再 push tag，或事后 `gh release edit <tag> --notes-file …`。
+
 ## 当前状态与下一步
 
-- 当前已发布版本：0.5.0（OpenCode Go 额度监测、预警系统重构、设置页改版、胶囊整改、GPT/OpenCode 额度预警）
-- 未发布（见 CHANGELOG「未发布」）：OpenCode Go 双账号监测（第二把 Key + OC2 独立菜单栏状态项）、胶囊月额度恢复天数、菜单栏 GPT 5 小时恢复倒计时、OpenCode fallback 兼容 `opencode-go` 条目名、设置保存钥匙串异步化 + 15s 超时（修卡死/闪退）、钥匙串写入失败时回滚保住旧 Key、测试连接主题画刷闪退修复、NSStatusItem retain（修原生 SIGSEGV）、菜单栏状态项改为「只在启动时创建一次 + setVisible 显隐」（修运行期 Dispose/重建把状态项挤到屏幕外、菜单栏整条消失）、SIGTERM 收尾摘掉状态项（修 ControlCenter 留下点不动的残影项）、全局未处理异常日志（crash-*.log）、GPT 预警事件日志（`AlertEventLogger`）、Codex 原生凭据刷新
+- 当前已发布版本：**0.6.0**（OpenCode Go 双账号监测、菜单栏 GPT 5 小时恢复倒计时 + OC1 标签、胶囊月额度恢复天数、GPT 预警事件日志 `AlertEventLogger`、Codex 原生凭据刷新、菜单栏状态项稳定性一批修复）
+- 未发布（见 CHANGELOG「未发布」）：暂无。待办见下方「下一步」
 - 测试工程在 macOS 上不可运行（引用 WPF csproj，缺 WindowsDesktop SDK）；共享代码验证以 `dotnet build src/DeepSeekBalanceWidget.Mac/...` 为准
-- 下一步：① 择机打 `v*` tag 升版本发布——升版须同步 Mac csproj / Info.plist / README 版本号（详见上方「发布前版本一致性」），否则 app 内部版本与 GitHub tag 不符；② 或先补齐 WorkBuddy 实际额度接入；③ 视 Windows 新仓库落地情况，决定是否把 `src/DeepSeekBalanceWidget/`（WPF）从本仓库移除
+- 下一步：① 补齐 WorkBuddy 实际额度接入（当前仍是占位）；② README 的界面截图仍是 v0.6.0 之前的版本（本机缺屏幕录制权限，无法重截胶囊新布局），有权限时补；③ 视 Windows 新仓库落地情况，决定是否把 `src/DeepSeekBalanceWidget/`（WPF）从本仓库移除
 
 ## 治理模板已应用
 
