@@ -50,6 +50,7 @@ public partial class MainWindow : Window
     private IBalanceProvider _provider;
     private MacMenuBarBalance? _menuBarBalance;
     private MacMenuBarBalance? _menuBarBalanceOc2;
+    private PosixSignalRegistration? _terminateRegistration;
     private ParsedBalance? _latestBalance;
     private string _menuBarBalanceText = "¥ --";
     private string _menuBarBalanceTooltip = "DeepSeek 余额监控：正在读取余额";
@@ -158,6 +159,10 @@ public partial class MainWindow : Window
         // 这样主项在左、OC2 在右，两段数据挨在一起。
         _menuBarBalanceOc2 ??= MacMenuBarBalance.Create(RestoreAndActivate);
         _menuBarBalance ??= MacMenuBarBalance.Create(RestoreAndActivate);
+        // 被 SIGTERM 杀掉时若不主动 removeStatusItem，ControlCenter 会把它缓存的绘制结果
+        // 留在菜单栏上，变成一个点不动、数据也不再更新的「残影项」。
+        _terminateRegistration = PosixSignalRegistration.Create(
+            PosixSignal.SIGTERM, HandleTerminateSignal);
         RefreshMenuBar();
         RefreshPeakStatus();
         if (_config.EnableDeepSeekMonitoring) _refreshTimer.Start();
@@ -1006,10 +1011,7 @@ public partial class MainWindow : Window
         _cancellation.Cancel();
         SaveWindowPosition();
         _cancellation.Dispose();
-        _menuBarBalance?.Dispose();
-        _menuBarBalance = null;
-        _menuBarBalanceOc2?.Dispose();
-        _menuBarBalanceOc2 = null;
+        ReleaseMenuBarItems();
         if (_codexProvider is IDisposable codex) codex.Dispose();
         if (_openCodeProvider is IDisposable openCode) openCode.Dispose();
         if (_openCodeProvider2 is IDisposable openCode2) openCode2.Dispose();
@@ -1147,6 +1149,30 @@ public partial class MainWindow : Window
             oc2Item.SetVisible(showOpenCode2);
             if (showOpenCode2) oc2Item.Update(_menuBarOpenCodeText2, _menuBarOpenCodeTooltip2);
         }
+    }
+
+    /// <summary>
+    /// 摘掉全部菜单栏状态项：正常退出和 SIGTERM 收尾都走这里。
+    /// 漏掉会在 ControlCenter 里留下点不动的残影项。
+    /// </summary>
+    private void ReleaseMenuBarItems()
+    {
+        _terminateRegistration?.Dispose();
+        _terminateRegistration = null;
+        _menuBarBalance?.Dispose();
+        _menuBarBalance = null;
+        _menuBarBalanceOc2?.Dispose();
+        _menuBarBalanceOc2 = null;
+    }
+
+    private void HandleTerminateSignal(PosixSignalContext context)
+    {
+        // 回调跑在信号线程上，AppKit 只能在主线程碰；给它 2 秒，超时就照常退出。
+        try
+        {
+            Dispatcher.UIThread.InvokeAsync(ReleaseMenuBarItems).Wait(TimeSpan.FromSeconds(2));
+        }
+        catch { /* 收尾失败也不拦着进程退出 */ }
     }
 
     private static string FormatAccount(CodexAccountUsageSnapshot account)

@@ -28,6 +28,7 @@
 
 ### 工程化
 
+- 新增 **SIGTERM 收尾**：`PosixSignalRegistration` 收到 SIGTERM 时先回主线程摘掉菜单栏状态项（限时 2 秒）再退出。此前脚本 `kill` 结束进程不走 `OnClosing`，ControlCenter 会把已死实例的绘制结果留在菜单栏上，变成一个点不动、数值不再更新的「残影项」（SIGKILL / 强制退出仍拦不住，属 macOS 侧行为）
 - 新增 **全局未处理异常日志**：`AppDomain.UnhandledException` / `UnobservedTaskException` 落盘 `~/Library/Application Support/DeepSeekBalanceWidget/crash-YYYYMMDD.log`，进程崩溃不再无声消失，可回溯完整堆栈
 
 ## 0.5.0 — 2026-09-01
