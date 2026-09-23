@@ -1140,15 +1140,12 @@ public partial class MainWindow : Window
         _menuBarBalance?.Update(string.Join(" · ", titleParts), string.Join(Environment.NewLine, tooltipParts));
 
         // 账号2 独立状态项：配置了第二把 Key 才显示。
-        if (_config.EnableOpenCodeMonitoring && _openCodeProvider2 is not null)
+        // 只能隐藏，不能 Dispose 再重建——运行期新建的状态项会被 macOS 排到屏幕外。
+        if (_menuBarBalanceOc2 is { } oc2Item)
         {
-            _menuBarBalanceOc2 ??= MacMenuBarBalance.Create(RestoreAndActivate);
-            _menuBarBalanceOc2?.Update(_menuBarOpenCodeText2, _menuBarOpenCodeTooltip2);
-        }
-        else if (_menuBarBalanceOc2 is { } oc2Item)
-        {
-            oc2Item.Dispose();
-            _menuBarBalanceOc2 = null;
+            bool showOpenCode2 = _config.EnableOpenCodeMonitoring && _openCodeProvider2 is not null;
+            oc2Item.SetVisible(showOpenCode2);
+            if (showOpenCode2) oc2Item.Update(_menuBarOpenCodeText2, _menuBarOpenCodeTooltip2);
         }
     }
 

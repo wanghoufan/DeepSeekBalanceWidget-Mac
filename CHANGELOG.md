@@ -8,7 +8,7 @@
 
 ### 功能
 
-- 新增 **OpenCode Go 双账号监测**：设置页可配置第二把 API Key（独立钥匙串条目 `opencode-api-key-2`），胶囊 OC 区块并排显示 OC1/OC2 两张迷你卡（间距加大、只配一把 Key 时仅显示 OC1），详情卡双账号分组显示（账号1/账号2 前缀 + 空行分组），菜单栏新增独立 OC2 状态项（排在主项右侧，未配置第二把 Key 时自动隐藏）；账号2 预警独立评估
+- 新增 **OpenCode Go 双账号监测**：设置页可配置第二把 API Key（独立钥匙串条目 `opencode-api-key-2`），胶囊 OC 区块并排显示 OC1/OC2 两张迷你卡（间距加大、只配一把 Key 时仅显示 OC1），详情卡双账号分组显示（账号1/账号2 前缀 + 空行分组），菜单栏新增独立 OC2 状态项（排在主项右侧，未配置第二把 Key 时自动隐藏；启动后中途才启用账号2 时，新显示的 OC2 会插在主项左侧，重启后恢复预期顺序）；账号2 预警独立评估
 - 新增 **胶囊月额度恢复天数**：OC 卡月行恢复时间显示纯天数数字（如 `24`），菜单栏主项 OC 标签改为 `OC1`
 - 新增 **菜单栏 GPT 5 小时恢复倒计时**：菜单栏 GPT 段由 `GPT 65/79%` 变为 `GPT 65/79% 4h24m`（倒计时紧跟在百分比右侧）；窗口排序与胶囊 / tooltip 统一为按 `DurationMinutes` 升序，倒计时复用 `CodexUsageFormatter.FormatCountdownShort`，已到期显示 `0m`、不放汉字
 - 新增 **GPT 预警事件日志**（`AlertEventLogger`）：低量预警与恢复提醒在评估触发时即落盘记录（写在弹窗开关判断之前），用户关闭弹窗后仍可回溯「提醒到底触发过没有」
@@ -18,12 +18,13 @@
 
 - 修复 **测试连接闪退**：设置页 `ThemeBrush` 用 `Application.FindResource` 解析 ThemeDictionaries 中的主题画刷失败即抛未处理异常，现改为控件作用域解析并回退灰色
 - 修复 **保存第二把 Key 后原生崩溃**（SIGSEGV）：`MacMenuBarBalance` 未 retain `statusItemWithLength:` 返回的 NSStatusItem（AppKit 不持有该对象），第二个状态项创建后 autorelease pool 清空即释放，主线程再访问即段错误；现创建时 retain、Dispose 时 release
+- 修复 **菜单栏整条不显示（重启 app 才回来）**：macOS 给运行期新建的 NSStatusItem 分配的是屏幕外槽位（实测 frame 原点 −1585 / −3633、`screen=nil`，`setLength:` 强制重排、先建新再销旧都拉不回来，也不会自愈），只有进程启动时创建的那次能拿到可见位置。状态项因此改为只在窗口打开时创建一次，之后「是否占用菜单栏」一律用 `setVisible:` 显隐；此前账号2 状态项按配置 Dispose + 重建，正是这条路径会把主项挤掉
 - 修复 **OpenCode 额度不显示**：本机 OpenCode CLI 写入的 auth.json 条目名为 `opencode-go`，Provider 此前只识别 `opencode` 导致 fallback 读取永远失败、区块一直显示「未配置 API Key」；现两种条目名均兼容
 - 修复 **设置保存可能卡死/闪退**：钥匙串写入（`security` 命令）此前在 UI 线程同步执行，遇到 macOS 钥匙串授权确认框会把整个 app 挂死（观感即崩溃）；现改为 `security` 加 15 秒超时、保存流程移入后台线程，失败时设置页内显示明确错误
 - 修复 **钥匙串写入失败会连带丢掉已存 Key**：`security add-generic-password -U` 是「先删后建」，删除不随后续写入失败回滚，钥匙串授权被拒时旧 Key 已没了；现写入前先读出旧值、失败时回写，并把 `security` 的真实报错与退出码带进错误提示（此前只有一句「请在钥匙串访问中检查权限」）。注：授权被整体拒绝时回写同样会被拒，彻底堵住该窗口需改用 `SecItemUpdate` 原地更新
 - 设置页保存时控件属性先在 UI 线程取快照再进后台线程，避免跨线程读取 Avalonia 控件
 - 修复 **欠费时余额一直「刷新失败：币种 CNY 总余额非法」**：DeepSeek 在账户欠费（`is_available=false`）时返回负余额（如 `total_balance: "-0.71"`），`BalanceParser.TryAmount` 此前用 `value >= 0` 把负数判为脏数据，导致整次刷新失败、界面长期停留在上一次的缓存值；现允许负数，界面按 `¥-0.71` + 「账户不可用」正常展示
-- 修复 **已删除的 OpenCode 账号仍占着菜单栏**：账号2 的 Key 被服务端撤销（401/403）时，此前只把卡片显示为 `--`、菜单栏状态项继续存在；现视为账号已删除，收回 Provider 并一并移除菜单栏状态项与详情卡
+- 修复 **已删除的 OpenCode 账号仍占着菜单栏**：账号2 的 Key 被服务端撤销（401/403）时，此前只把卡片显示为 `--`、菜单栏状态项继续存在；现视为账号已删除，收回 Provider、隐藏（不再销毁）OC2 状态项并移除详情卡
 
 ### 工程化
 

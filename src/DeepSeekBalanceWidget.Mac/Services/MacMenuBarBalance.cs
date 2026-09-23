@@ -15,6 +15,7 @@ public sealed class MacMenuBarBalance : IDisposable
     private readonly IntPtr _statusItem;
     private readonly IntPtr _button;
     private readonly IntPtr _target;
+    private bool _visible = true;
     private bool _disposed;
 
     private MacMenuBarBalance(IntPtr statusBar, IntPtr statusItem, IntPtr button, IntPtr target)
@@ -54,6 +55,18 @@ public sealed class MacMenuBarBalance : IDisposable
         SendVoidIntPtr(button, GetSelector("setTarget:"), target);
         SendVoidIntPtr(button, GetSelector("setAction:"), GetSelector(ClickSelectorName));
         return new MacMenuBarBalance(statusBar, statusItem, button, target);
+    }
+
+    /// <summary>
+    /// 显示 / 隐藏状态项。运行期间销毁再重建会让 macOS 把新项排到屏幕外
+    /// （实测 frame 原点为负、screen=nil，而且不会自己回来），所以「不再占用菜单栏」
+    /// 只能靠隐藏，不能 Dispose。
+    /// </summary>
+    public void SetVisible(bool visible)
+    {
+        if (_disposed || _visible == visible) return;
+        _visible = visible;
+        SendVoidBool(_statusItem, GetSelector("setVisible:"), visible);
     }
 
     public void Update(string title, string tooltip)
@@ -146,6 +159,10 @@ public sealed class MacMenuBarBalance : IDisposable
 
     [DllImport("/usr/lib/libobjc.A.dylib", EntryPoint = "objc_msgSend")]
     private static extern void SendVoid(IntPtr receiver, IntPtr selector);
+
+    [DllImport("/usr/lib/libobjc.A.dylib", EntryPoint = "objc_msgSend")]
+    private static extern void SendVoidBool(IntPtr receiver, IntPtr selector,
+        [MarshalAs(UnmanagedType.I1)] bool argument);
 
     [DllImport("/usr/lib/libobjc.A.dylib", EntryPoint = "objc_allocateClassPair")]
     private static extern IntPtr AllocateClassPair(IntPtr superclass, string name, IntPtr extraBytes);
