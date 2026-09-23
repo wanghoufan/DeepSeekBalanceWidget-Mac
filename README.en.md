@@ -20,8 +20,8 @@ Grab the macOS installer from [Releases](https://github.com/wanghoufan/DeepSeekB
 
 | File | Platform |
 | --- | --- |
-| `DeepSeekBalanceWidget-v0.5.0-macos-arm64.zip` | macOS Apple Silicon (M series) |
-| `DeepSeekBalanceWidget-v0.5.0-macos-x64.zip` | macOS Intel |
+| `DeepSeekBalanceWidget-v0.6.0-macos-arm64.zip` | macOS Apple Silicon (M series) |
+| `DeepSeekBalanceWidget-v0.6.0-macos-x64.zip` | macOS Intel |
 
 **macOS**: unzip and drag `DeepSeekBalanceWidget.app` into the Applications folder — no .NET installation required.
 
@@ -62,25 +62,25 @@ The script opens the app so it registers with Launchpad; afterwards you can star
 
 - Real-time display of DeepSeek API total balance, top-up balance, and granted balance, with amount/percentage change vs. the last successful refresh
 - **ChatGPT Plus usage** from the local Codex login: an aligned table showing both accounts' 5-hour rolling window and weekly window remaining quota, with reset countdowns (column-aligned since v0.4.0)
-- **OpenCode Go quota** via the official usage endpoint: 5-hour / weekly / monthly remaining percentages, reset countdown, and progress bars; missing key / invalid key / network errors are shown directly on the block (replaces the former WorkBuddy placeholder)
+- **OpenCode Go quota** via the official usage endpoint: 5-hour / weekly / monthly remaining percentages, reset countdown, and progress bars; missing key / invalid key / network errors are shown directly on the block (replaces the former WorkBuddy placeholder). Since v0.6.0 it supports **two accounts**: a second API key configured separately, side-by-side OC1/OC2 mini cards in the capsule, and grouped detail cards
 - Balance & quota alerts: persistent alert window with looping siren when DeepSeek balance or ChatGPT / OpenCode quota drops below configured thresholds (default 20% / 10%), plus a recovery notification when quota returns; each threshold reminds once per cycle
 - **Mini capsule, single-row-wide layout**: DeepSeek balance (with change badge) | GPT dual-account four-column alignment | OpenCode Go three-window progress bars | edge-snap / pin / minimize / close buttons vertically centered at the far right (refresh time removed from the capsule; kept in the expanded card)
 - **Customizable capsule block order** (v0.4.0): reorder DeepSeek / ChatGPT / OpenCode / WorkBuddy blocks via move up/down in Settings; takes effect on save
 - Low-balance and abnormal-drop alerts with a cooldown to avoid repeated interruptions
 - Full card and mini capsule modes, freely draggable with remembered position, optional edge-snapping auto-hide
-- Live menu-bar display of balance, Plus usage percentage, and peak/off-peak indicator
+- Live menu-bar display of balance, Plus usage percentage (with the 5-hour reset countdown), OpenCode Go quota (a standalone OC2 item when a second key is configured), and peak/off-peak indicator
 - Menu-bar status, pin-on-top, hide, launch at login; official peak hours shown in Beijing time
 - API key stored in the macOS login Keychain — never in plaintext, never uploaded
 
-## v0.5.0 Highlights
+## v0.6.0 Highlights
 
-- **GPT quota recovery notification**: when the 5-hour / weekly quota returns to full (default 100%), a green recovery toast pops up (recovery-arrow icon + green border, auto-dismisses in 8 s, no siren), and the capsule GPT block glows green for 2 minutes — clearly distinct from the orange warning
-- **GPT / OpenCode alert windows wired up on macOS**: the evaluator was compiled previously but never invoked by the main window, so alerts and recovery toasts never appeared on Mac; now connected
-- **OpenCode Go quota monitoring** (replaces the former WorkBuddy placeholder): official usage endpoint, full 5-hour / weekly / monthly display, each capsule row showing remaining %, reset countdown, and a progress bar
-- **Alert system rework**: low-quota alerts now use a persistent window + looping siren that must be dismissed via "Got it", with configurable position (top-right by default); OpenCode keeps only the low-quota alert, no recovery notification
-- **Settings redesign**: left navigation + 2×2 monitoring cards, per-item toggles and "Test connection" row layout
+- **OpenCode Go dual-account monitoring**: configure a second API key in Settings (separate Keychain item), side-by-side OC1/OC2 mini cards in the capsule, detail cards grouped per account, a standalone OC2 menu-bar item, and independent alerts for account 2
+- **Richer menu bar**: the GPT segment now carries the 5-hour reset countdown (`GPT 65/79% 4h24m`) and the OC label becomes `OC1`; the capsule monthly row shows days until reset
+- **GPT alert event log**: low-quota and recovery alerts are persisted the moment they are evaluated, so you can still tell whether a reminder fired after dismissing the window
+- **Native Codex credential refresh**: reads Codex's own `auth.json` accounts in addition to CC Switch storage, refreshing expired OAuth tokens and writing both stores atomically
+- **Stability**: menu-bar status items are now created once at launch and toggled with `setVisible:` (fixes the whole menu bar going blank), removed on SIGTERM (fixes frozen, unclickable leftovers), Keychain writes roll back so an existing key survives a failed save, settings save moved off the UI thread with a 15 s timeout, negative balances from an overdue account are no longer rejected, and revoked OpenCode accounts no longer occupy the menu bar
 
-**In development (unreleased)**: OpenCode Go **dual-account monitoring** (side-by-side OC1/OC2 mini cards in the capsule, a standalone OC2 menu-bar item, grouped detail card), monthly-quota reset days in the capsule (plain day count), a GPT 5-hour reset countdown in the menu bar, settings-save stability fixes, and menu-bar item stability fixes (status items are created once at launch and removed on SIGTERM) — see the "Unreleased" section of [CHANGELOG.md](CHANGELOG.md).
+**In development (unreleased)**: real WorkBuddy quota integration (still a placeholder) — see the "Unreleased" section of [CHANGELOG.md](CHANGELOG.md).
 
 See [CHANGELOG.md](CHANGELOG.md) for the full changelog.
 
