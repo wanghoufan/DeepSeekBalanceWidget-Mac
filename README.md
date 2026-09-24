@@ -84,7 +84,7 @@ bash scripts/install-macos.sh arm64
 - **Codex 原生凭据刷新**：除 CC Switch 存储外支持读取 Codex 原生 `auth.json` 账号，OAuth token 过期自动刷新并原子回写
 - **稳定性**：菜单栏状态项改为只在启动时创建一次 + `setVisible:` 显隐（修「菜单栏整条不显示」）、SIGTERM 收尾摘除状态项（修点不动的残影项）、钥匙串写入失败回滚保住旧 Key、设置保存移出 UI 线程并加 15 秒超时、欠费负余额不再被判为非法数据、已撤销的 OpenCode 账号不再占用菜单栏
 
-**开发中（未发布）**：WorkBuddy 实际额度接入（当前仍为占位）——详见 [CHANGELOG.md](CHANGELOG.md)「未发布」章节。
+**开发中（未发布）**：菜单栏 OC 状态项月额度恢复天数后缀（如 `OC1 99/89/45% 20D`）；WorkBuddy 实际额度接入（当前仍为占位）——详见 [CHANGELOG.md](CHANGELOG.md)「未发布」章节。
 
 详见 [CHANGELOG.md](CHANGELOG.md)。
 

@@ -43,7 +43,7 @@ Release 包的 zip 文件名由 git tag（`v*`）决定，README 下载表里 ma
 ## 当前状态与下一步
 
 - 当前已发布版本：**0.6.0**（OpenCode Go 双账号监测、菜单栏 GPT 5 小时恢复倒计时 + OC1 标签、胶囊月额度恢复天数、GPT 预警事件日志 `AlertEventLogger`、Codex 原生凭据刷新、菜单栏状态项稳定性一批修复）
-- 未发布（见 CHANGELOG「未发布」）：暂无。待办见下方「下一步」
+- 未发布（见 CHANGELOG「未发布」）：菜单栏 OC 状态项月额度恢复天数后缀（如 `OC1 99/89/45% 20D`，随刷新按 `ResetsAt` 重算）。待办见下方「下一步」
 - 测试工程在 macOS 上不可运行（引用 WPF csproj，缺 WindowsDesktop SDK）；共享代码验证以 `dotnet build src/DeepSeekBalanceWidget.Mac/...` 为准
 - 下一步：① 补齐 WorkBuddy 实际额度接入（当前仍是占位）；② README 的界面截图仍是 v0.6.0 之前的版本（本机缺屏幕录制权限，无法重截胶囊新布局），有权限时补；③ 视 Windows 新仓库落地情况，决定是否把 `src/DeepSeekBalanceWidget/`（WPF）从本仓库移除
 

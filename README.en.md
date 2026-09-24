@@ -80,7 +80,7 @@ The script opens the app so it registers with Launchpad; afterwards you can star
 - **Native Codex credential refresh**: reads Codex's own `auth.json` accounts in addition to CC Switch storage, refreshing expired OAuth tokens and writing both stores atomically
 - **Stability**: menu-bar status items are now created once at launch and toggled with `setVisible:` (fixes the whole menu bar going blank), removed on SIGTERM (fixes frozen, unclickable leftovers), Keychain writes roll back so an existing key survives a failed save, settings save moved off the UI thread with a 15 s timeout, negative balances from an overdue account are no longer rejected, and revoked OpenCode accounts no longer occupy the menu bar
 
-**In development (unreleased)**: real WorkBuddy quota integration (still a placeholder) — see the "Unreleased" section of [CHANGELOG.md](CHANGELOG.md).
+**In development (unreleased)**: a monthly-quota countdown suffix on the menu-bar OC item (e.g. `OC1 99/89/45% 20D`); real WorkBuddy quota integration (still a placeholder) — see the "Unreleased" section of [CHANGELOG.md](CHANGELOG.md).
 
 See [CHANGELOG.md](CHANGELOG.md) for the full changelog.
 
