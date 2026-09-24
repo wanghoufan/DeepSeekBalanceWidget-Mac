@@ -684,7 +684,7 @@ public partial class MainWindow : Window
             + Environment.NewLine + Environment.NewLine + detail;
         _menuBarOpenCodeText2 = snapshot.Windows.Count == 0
             ? "--"
-            : "OC2 " + string.Join("/", snapshot.Windows.Select(w => w.RemainingPercent)) + "%";
+            : "OC2 " + string.Join("/", snapshot.Windows.Select(w => w.RemainingPercent)) + "%" + MonthlyDaysSuffix(byKind.GetValueOrDefault("monthly"));
         _menuBarOpenCodeTooltip2 = detail;
         RefreshMenuBar();
     }
@@ -733,9 +733,19 @@ public partial class MainWindow : Window
         ApplyOpenCodeRow(byKind.GetValueOrDefault("rolling"), MiniOcFivePct, MiniOcFiveCd, MiniOcFiveBarFill);
         ApplyOpenCodeRow(byKind.GetValueOrDefault("weekly"), MiniOcWeeklyPct, MiniOcWeeklyCd, MiniOcWeeklyBarFill);
         ApplyOpenCodeRow(byKind.GetValueOrDefault("monthly"), MiniOcMonthlyPct, MiniOcMonthlyCd, MiniOcMonthlyBarFill, monthly: true);
-        _menuBarOpenCodeText = snapshot.Windows.Count == 0 ? "--" : string.Join("/", snapshot.Windows.Select(w => w.RemainingPercent)) + "%";
+        _menuBarOpenCodeText = snapshot.Windows.Count == 0
+            ? "--"
+            : string.Join("/", snapshot.Windows.Select(w => w.RemainingPercent)) + "%" + MonthlyDaysSuffix(byKind.GetValueOrDefault("monthly"));
         _menuBarOpenCodeTooltip = OpenCodeText.Text ?? string.Empty;
         RaiseOpenCodeQuotaAlerts(snapshot);
+    }
+
+    /// <summary>菜单栏月额度后缀：如 " 20D"（距月额度重置剩余天数）；无月窗口或未知时不加。</summary>
+    private static string MonthlyDaysSuffix(OpenCodeUsageWindow? window)
+    {
+        if (window?.ResetsAt is not { } resetsAt) return string.Empty;
+        var days = Math.Floor((resetsAt - DateTimeOffset.Now).TotalDays);
+        return " " + (days <= 0 ? 0 : (int)days) + "D";
     }
 
     private static void ApplyOpenCodeRow(OpenCodeUsageWindow? window, TextBlock pct, TextBlock countdown, Border barFill, bool monthly = false)
