@@ -30,3 +30,6 @@ docs/runtime/INTERNAL_CAPABILITY_CONSUMED.jsonl
 
 # WorkBuddy workspace data (memory, personal — do not commit)
 .workbuddy/
+
+# ORCA 迁移备份（回滚用，勿入库）
+*.旧版-2026-09-29

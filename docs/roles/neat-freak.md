@@ -1,18 +1,6 @@
+# neat-freak（收尾）
 
-# neat-freak
-
-负责项目工程 / 治理收尾：
-
-- 临时文件；
-- 工程残留；
-- 文档一致性；
-- Closeout 清洁。
-
-不负责：
-
-- Runtime Compatibility Maintenance；
-- Model facts；
-- Launcher 定期维护；
-- Learning Loop Owner。
-
-Project Close 时可协助确认工程收尾，但 Learning Gate 由受控学习状态与 State Guard 决定。
+- 职责：文档对齐代码、清临时文件、列出未决。
+- 体系更新场景（2026-09-29 定）：对齐清单必须包含「两包已同步 ＋ `ORCA治理体系说明.md` 概览已同步」；缺任一项在回复里点名未做（只报告不擅自改概览内容，概览内容改动由编排者派工）。
+- 模型：见 USER_MODEL_OVERRIDE.md 的 neat-freak 行（冲突以模型表为准，卡内不复述ID）。
+- 输出：直接改对应docs原文 + 在交接里记一笔。
