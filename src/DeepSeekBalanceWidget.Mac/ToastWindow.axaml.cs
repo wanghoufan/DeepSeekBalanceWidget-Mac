@@ -1,9 +1,7 @@
 using Avalonia;
-using Avalonia.Animation;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
-using Avalonia.Styling;
 using Avalonia.Threading;
 using DeepSeekBalanceWidget.Models;
 using DeepSeekBalanceWidget.Services;
@@ -110,10 +108,24 @@ public partial class ToastWindow : Window
             Active.Add(this);
             RepositionAll();
         }
+        Console.Error.WriteLine($"[Toast] opened pos={Position} bounds={Bounds} screens={Screens is not null} primary={(Screens?.Primary is { } s ? s.WorkingArea.ToString() : "null")}");
 
         if (_sound) MacAlarmSound.Play(SoundStyle);
         Opacity = 0;
         _ = FadeAsync(0, 1);
+
+        // 兜底：1.5s 后检查淡入结果，若动画未把透明度带到 1 则强制补上（防止窗口不可见）。
+        Dispatcher.UIThread.Post(async () =>
+        {
+            await Task.Delay(1500);
+            if (_closing || _dismissed) return;
+            Console.Error.WriteLine($"[Toast] opacity@1.5s={Opacity} pos={Position} visible={IsVisible}");
+            if (Opacity < 1)
+            {
+                Opacity = 1;
+                Console.Error.WriteLine("[Toast] fade did not reach 1, forced Opacity=1");
+            }
+        });
     }
 
     private void Window_Closed(object? sender, EventArgs e)
@@ -167,24 +179,26 @@ public partial class ToastWindow : Window
 
     private async Task FadeAsync(double from, double to)
     {
-        var animation = new Animation
+        // 不用 Avalonia Animation.RunAsync：KeyFrame 对 Visual.Opacity 的动画在 macOS
+        // 透明窗口（TransparencyLevelHint=Transparent）上跑完后，窗口内容始终渲染为
+        // 全透明（screencapture -l 报 "could not create image from window"、CG 窗口
+        // alpha=1 但屏上无像素）。改为直接属性插值，与兜底强制赋值走同一路径。
+        try
         {
-            Duration = TimeSpan.FromSeconds(0.25),
-            Children =
+            const int steps = 8;
+            for (int i = 1; i <= steps; i++)
             {
-                new KeyFrame
-                {
-                    Cue = new Cue(0),
-                    Setters = { new Setter(Visual.OpacityProperty, from) }
-                },
-                new KeyFrame
-                {
-                    Cue = new Cue(1),
-                    Setters = { new Setter(Visual.OpacityProperty, to) }
-                }
+                Opacity = from + (to - from) * i / steps;
+                await Task.Delay(31);
             }
-        };
-        await animation.RunAsync(this);
+            Opacity = to;
+            Console.Error.WriteLine($"[Toast] fade {from:0.##}->{to:0.##} done opacity={Opacity}");
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[Toast] fade {from:0.##}->{to:0.##} failed: {ex}");
+            Opacity = to;
+        }
     }
 
     private void StopAlarmSoundIfLast()
@@ -201,29 +215,33 @@ public partial class ToastWindow : Window
         var screen = Active[0].Screens?.Primary;
         if (screen is null) return;
 
+        // WorkingArea 与 Window.Position 同为逻辑点（实测校准：CG 窗口列表的
+        // pos/size 与 Avalonia 数值一致，主屏工作区宽 1920 点）。任何 ×RenderScaling
+        // 都会把右上角推到点坐标 3288（屏外），导致窗口整只出屏、屏幕上无像素
+        // （screencapture -l 报 "could not create image from window"）。
         PixelRect area = screen.WorkingArea;
-        double scale = Active[0].RenderScaling > 0 ? Active[0].RenderScaling : 1;
+        double areaTop = area.Y;
+        double areaRight = area.Right;
+        double areaBottom = area.Bottom;
+        double areaHeight = area.Height;
         var heights = Active.Select(window =>
-        {
-            double height = window.Bounds.Height > 0 ? window.Bounds.Height : 90;
-            return height * scale;
-        }).ToArray();
-        double width = (Active[0].Bounds.Width > 0 ? Active[0].Bounds.Width : 260) * scale;
-        double totalHeight = heights.Sum() + Gap * scale * Math.Max(0, Active.Count - 1);
+            window.Bounds.Height > 0 ? window.Bounds.Height : 90).ToArray();
+        double width = Active[0].Bounds.Width > 0 ? Active[0].Bounds.Width : 260;
+        double totalHeight = heights.Sum() + Gap * Math.Max(0, Active.Count - 1);
 
         string position = Active[0].PositionHint ?? "TopRight";
         double top = position switch
         {
-            "RightCenter" => area.Y + Math.Max(0, (area.Height - totalHeight) / 2),
-            "BottomRight" => area.Bottom - Margin * scale - totalHeight,
-            _ => area.Y + Margin * scale
+            "RightCenter" => areaTop + Math.Max(0, (areaHeight - totalHeight) / 2),
+            "BottomRight" => areaBottom - Margin - totalHeight,
+            _ => areaTop + Margin
         };
-        int left = area.Right - (int)Math.Round(width) - (int)Math.Round(Margin * scale);
+        int left = (int)Math.Round(areaRight - width - Margin);
         double cursor = top;
         for (int i = 0; i < Active.Count; i++)
         {
             Active[i].Position = new PixelPoint(left, (int)Math.Round(cursor));
-            cursor += heights[i] + Gap * scale;
+            cursor += heights[i] + Gap;
         }
     }
 }

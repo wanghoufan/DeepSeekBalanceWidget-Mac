@@ -50,6 +50,8 @@ public partial class MainWindow : Window
     private IBalanceProvider _provider;
     private MacMenuBarBalance? _menuBarBalance;
     private MacMenuBarBalance? _menuBarBalanceOc2;
+    private MacMenuBarBalance? _menuBarBuilder;
+    private string? _lastBuilderRecommendationKey;
     private PosixSignalRegistration? _terminateRegistration;
     private ParsedBalance? _latestBalance;
     private string _menuBarBalanceText = "¥ --";
@@ -75,6 +77,13 @@ public partial class MainWindow : Window
     private bool _pointerInside;
     private bool _suppressPositionSave;
     private bool _isRestoringFromDock;
+    private bool _startHidden = true;
+
+    /// <summary>启动隐藏完成的 UTC 时刻；App 端用它诊断启动阶段的 Reopen 激活。</summary>
+    public DateTime? StartupHiddenUtc { get; private set; }
+
+    /// <summary>用户是否主动打开过窗口（菜单栏/Dock 点击走过 RestoreAndActivate）。</summary>
+    public bool UserOpened { get; private set; }
     private DateTime _lastPointerPressUtc;
     private DockEdge _dockEdge;
     private readonly CodexQuotaAlertEvaluator _codexQuotaAlerts = new();
@@ -115,7 +124,11 @@ public partial class MainWindow : Window
         _openRouterTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(UsageRefreshSeconds) };
         _openRouterTimer.Tick += async (_, _) => await RefreshOpenRouterAsync();
         _peakTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(UsageRefreshSeconds) };
-        _peakTimer.Tick += (_, _) => RefreshPeakStatus();
+        _peakTimer.Tick += (_, _) =>
+        {
+            RefreshPeakStatus();
+            RefreshBuilderRecommendation(allowNotification: true);
+        };
         _positionSaveTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
         _positionSaveTimer.Tick += (_, _) => { _positionSaveTimer.Stop(); SaveWindowPosition(); };
         _autoHideTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
@@ -159,12 +172,17 @@ public partial class MainWindow : Window
         // 这样主项在左、OC2 在右，两段数据挨在一起。
         _menuBarBalanceOc2 ??= MacMenuBarBalance.Create(RestoreAndActivate);
         _menuBarBalance ??= MacMenuBarBalance.Create(RestoreAndActivate);
+        // Builder 推荐项最后创建：macOS 把后创建的状态项插到左边，
+        // 于是它位于 DeepSeek 余额项左侧。
+        _menuBarBuilder ??= MacMenuBarBalance.Create(RestoreAndActivate);
         // 被 SIGTERM 杀掉时若不主动 removeStatusItem，ControlCenter 会把它缓存的绘制结果
         // 留在菜单栏上，变成一个点不动、数据也不再更新的「残影项」。
         _terminateRegistration = PosixSignalRegistration.Create(
             PosixSignal.SIGTERM, HandleTerminateSignal);
         RefreshMenuBar();
         RefreshPeakStatus();
+        // 首次启动只记录当前推荐，不弹提醒。
+        RefreshBuilderRecommendation(allowNotification: false);
         if (_config.EnableDeepSeekMonitoring) _refreshTimer.Start();
         _peakTimer.Start();
         if (_config.EnableCodexMonitoring) _codexTimer.Start();
@@ -175,6 +193,15 @@ public partial class MainWindow : Window
         if (_config.EnableOpenCodeMonitoring) _ = RefreshOpenCodeAsync();
         if (_config.EnableOpenRouterMonitoring) _ = RefreshOpenRouterAsync();
         if (!_isRestoringFromDock) _autoHideTimer.Start();
+        // 启动时不弹主窗口（用户要求）：上面的初始化（菜单栏状态项、刷新定时器、
+        // 首次拉取）全部照常完成后立即隐藏；点菜单栏任意状态项或 Dock 图标可再打开。
+        if (_startHidden)
+        {
+            _startHidden = false;
+            Hide();
+            StartupHiddenUtc = DateTime.UtcNow;
+            Console.Error.WriteLine("[Startup] 主窗口启动后已隐藏，菜单栏照常工作");
+        }
         Debug.WriteLine($"[DockLifecycle] OnOpened exit visible={IsVisible} position={Position} restoring={_isRestoringFromDock}");
         Console.Error.WriteLine($"[DockLifecycle] OnOpened exit visible={IsVisible} position={Position} restoring={_isRestoringFromDock}");
     }
@@ -441,8 +468,9 @@ public partial class MainWindow : Window
             RefreshMenuBar();
         }
         catch (OperationCanceledException) { }
-        catch
+        catch (Exception ex)
         {
+            Console.Error.WriteLine($"[Codex] refresh failed: {ex}");
             CodexText.Text = "暂时无法读取 ChatGPT Plus 用量";
             ClearMiniGptRows();
             _menuBarCodexText = "--";
@@ -495,7 +523,9 @@ public partial class MainWindow : Window
     private void RaiseCodexQuotaAlerts(IReadOnlyList<CodexAccountUsageSnapshot> accounts)
     {
         bool toastsEnabled = _config.ShowToastNotifications;
-        foreach (var alert in _codexQuotaAlerts.Evaluate(accounts, _config, DateTimeOffset.Now))
+        var evaluated = _codexQuotaAlerts.Evaluate(accounts, _config, DateTimeOffset.Now);
+        Console.Error.WriteLine($"[Alert] evaluate accounts={accounts.Count} alerts={evaluated.Count} toastsEnabled={toastsEnabled}");
+        foreach (var alert in evaluated)
         {
             // 日志必须写在弹窗开关判断之前：用户关掉弹窗后仍要留下记录，
             // 否则无法回溯确认「提醒到底触发过没有」。
@@ -850,6 +880,44 @@ public partial class MainWindow : Window
         RefreshMenuBar();
     }
 
+    /// <summary>
+    /// 刷新 Builder 推荐状态项。规则由 BuilderRecommendationCalculator 统一按北京时间计算；
+    /// 只有 Key 发生变化且允许提醒时才弹一次普通 Notice，重复 Tick / 睡眠恢复只提示最终推荐。
+    /// </summary>
+    private void RefreshBuilderRecommendation(bool allowNotification)
+    {
+        var recommendation = BuilderRecommendationCalculator.GetRecommendation(DateTime.Now);
+        _menuBarBuilder?.Update(recommendation.MenuText, BuilderTooltip(recommendation));
+
+        string? previousKey = _lastBuilderRecommendationKey;
+        _lastBuilderRecommendationKey = recommendation.Key;
+        if (previousKey is null)
+        {
+            Console.Error.WriteLine(
+                $"[Builder] init {recommendation.Key} ({recommendation.MenuText}) at {DateTime.Now:HH:mm:ss} — 首启不提醒");
+            return;
+        }
+        if (!allowNotification || previousKey == recommendation.Key) return;
+        bool toastEnabled = _config.ShowToastNotifications;
+        Console.Error.WriteLine(
+            $"[Builder] switch {previousKey} -> {recommendation.Key} ({recommendation.MenuText}) at {DateTime.Now:HH:mm:ss} " +
+            $"toast={(toastEnabled ? "on" : "off(ShowToastNotifications=false) suppressed")}");
+        if (!toastEnabled) return;
+        MacToastService.Show(
+            "Builder 已切换",
+            $"{recommendation.MenuText} · {recommendation.Reason}",
+            _config);
+    }
+
+    private static string BuilderTooltip(BuilderRecommendation recommendation)
+    {
+        var next = BuilderRecommendationCalculator.GetRecommendation(recommendation.NextBoundaryBeijing);
+        return string.Join(Environment.NewLine,
+            $"当前推荐：{recommendation.MenuText}",
+            $"原因：{recommendation.Reason}",
+            $"下一次切换：{recommendation.NextBoundaryBeijing:HH:mm} → {next.MenuText}");
+    }
+
     private void UpdateRefreshTime()
     {
         string value = DateTime.Now.ToString("HH:mm:ss");
@@ -974,6 +1042,7 @@ public partial class MainWindow : Window
 
     public void RestoreAndActivate()
     {
+        UserOpened = true;
         Debug.WriteLine($"[DockLifecycle] RestoreAndActivate entry visible={IsVisible} position={Position}");
         Console.Error.WriteLine($"[DockLifecycle] RestoreAndActivate entry visible={IsVisible} position={Position}");
         BringToFront();
@@ -1173,6 +1242,8 @@ public partial class MainWindow : Window
         _menuBarBalance = null;
         _menuBarBalanceOc2?.Dispose();
         _menuBarBalanceOc2 = null;
+        _menuBarBuilder?.Dispose();
+        _menuBarBuilder = null;
     }
 
     private void HandleTerminateSignal(PosixSignalContext context)

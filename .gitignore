@@ -32,4 +32,7 @@ docs/runtime/INTERNAL_CAPABILITY_CONSUMED.jsonl
 .workbuddy/
 
 # ORCA 迁移备份（回滚用，勿入库）
-*.旧版-2026-09-29
+*.旧版-*
+
+# 临时交付/调试文件，不入库
+temp/

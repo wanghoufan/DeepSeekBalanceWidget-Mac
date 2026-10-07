@@ -15,6 +15,7 @@ public static class MacToastService
         AppConfig config,
         ToastAlertStyle style)
     {
+        Console.Error.WriteLine($"[Toast] Show style={style} title={title}");
         var toast = new ToastWindow(
             title,
             body,
@@ -24,5 +25,6 @@ public static class MacToastService
             alertPosition: config.AlertPosition,
             alertSoundStyle: config.AlertSoundStyle);
         toast.Show();
+        Console.Error.WriteLine($"[Toast] shown pos={toast.Position} bounds={toast.Bounds} scaling={toast.RenderScaling} opacity={toast.Opacity} topmost={toast.Topmost}");
     }
 }

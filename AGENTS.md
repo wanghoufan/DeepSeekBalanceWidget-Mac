@@ -1,9 +1,9 @@
 # AGENTS.md — DeepSeek Balance Widget（macOS 版仓库）
 
 <!-- ORCA-RULES-BLOCK:BEGIN -->
-<!-- 本区块由治理母版 scripts/sync-old-projects.sh 于 2026-09-29 注入；只增不删，可重复运行原地更新。 -->
+<!-- 本区块由治理母版 scripts/sync-old-projects.sh 于 2026-10-03 注入；只增不删，可重复运行原地更新。 -->
 <!-- 本项目 AGENTS.md 的其余内容（项目专属规矩）保持原样，冲突时以本区块为准。 -->
-## ORCA 规则增量（母版 2026-09-29-产品验收）
+## ORCA 规则增量（母版 2026-10-03-客户端无关）
 
 > 本区块只写**对外通用**的机制增量；派工细节见 `docs/roles/`，账本口径见下方条目。
 
@@ -15,8 +15,17 @@
   - **用户签收**：发布类型为**首次发布**的，用户签收通过才算完成（签收前状态记未完成）；迭代更新与局部修复不强制签收。签收属 **Human Gate 范畴（用户参与）**，**不是新增 QA Gate**。
 - **体系更新三件套（2026-09-29 定）**：①本项目规则文件改动后与母版对齐（用 `bash scripts/sync-old-projects.sh` 或按《迁移整理提示词》取包，**备份不覆盖**）；②账本内容**不重写**（实绩历史），只做 schema 校验 `node scripts/model/check-ledger.mjs docs/model`（须 `LEDGER-OK`）；③**HANDOFF 记一行**。**老项目无两包概念，故母版的「同步两包＋更新对外概览」不适用。**
 - **派工跨目录禁令（2026-09-29 定）**：派 opencode 通道角色（supervisor／neat-freak／experience-recorder）时，任务里读写本仓以外目录（如 `/tmp`、`1.Active/` 等）会被 `external_directory` 权限自动拒、步骤静默失败，可能让角色误报已做也易反复盲试烧额度（禁盲试）；派单前处置二选一——①临时文件改到仓内已 gitignore 的 `temp/`，②先取得用户授权；codebuddy／codex 通道无此限制。
-- **红线（2026-09-29 增补）**：产品验收未落盘或关键 AC 未测、不得报完工/收工；首次发布未取得用户签收、不得报完工/收工。
-- **本项目迁移状态**：`docs/model/GOVERNANCE-STATE.json`（`rules_version`／`synced_at`／`project_phase_field`／`task_ledger_rows`／`agents_needs_manual_merge`／`product_acceptance_ac_added`）。
+- **汇报与自决（2026-10-03 定）**：本项目 TM（编排者）**只报三件事**——① 目标完成没（计划内 AC 是否全部有证据）；② 用户安排的工作完成没（派工是否交付、发布上线是否已验证生效）；③ 大影响（功能上线/回滚、线上故障、数据或备份丢失、生产或他人项目被改动、需用户本人操作的账号授权/解密、任何不可逆删除）。
+  - **默认自决自做、不问不报**（可逆、只在本项目内、不碰业务）：已合并本地分支删除、未跟踪残留、临时文件与日志、已 gitignore 的工具目录；文档/账本格式小错与状态表落后；调试密钥文件（如 `app/debug.keystore`，一律不入库、自动补 `.gitignore`）；既有 warning（lint 告警、无测试用例等）默认不修不报，除非阻塞本次目标。
+  - **备份与旧文件**：确认不影响后续继续开发（无引用、非基线依赖）→ 直接删除、不问不报；确认会影响继续开发 → 保留到大阶段开发完成后再删，**不算待办、不上报、不催**。
+  - **必须问的只有四类红线，且一次问全不分多轮**：① secrets 与正式凭据；② 删用户数据或任何不可逆删除；③ 生产环境/数据库/他人项目改动；④ commit/push 与远端写入授权（无明确指令一律不做，**不做也不上报**）。
+  - **汇报形态**：单次汇报 ≤10 行＝三行心跳（目标/剩 P0/下一步）＋不超过 3 条要点；**禁把 pending/遗留/out-of-scope/未清除 warning 全量倒给用户**；遗留只列卡住本次目标的，其余进 HANDOFF 一行。**编排者啰嗦按违规打回**，supervisor 按同口径抽查。
+- **客户端无关与派工口自动探测（2026-10-03 定）**：本体系不绑定 Orca 或任何特定客户端。每轮开工先跑 `bash scripts/detect-client.sh` 认当前客户端，按 `mode` 派工、**不找用户填**——`window_subagent`＝该客户端有原生子代理（Orca／Trae／Qoder／Codex／Claude Code／opencode 等），窗口内直派、享真 resume／并行／worktree 隔离；`channel_cli`＝无原生子代理或未识别（保守默认），走通道 CLI 直调，只在汇报里带一句「当前客户端未识别，按 CLI 通道派」。表内 Runtime 列写「当前客户端窗口（自动探测）」即客户端无关，**一套包通用于任何客户端**；新客户端跑一次该脚本校准后加进映射即可。
+- **何时起本体系（2026-10-03 定）**：多阶段需 Human Gate／要产品验收留痕（AC 矩阵）／跨周或会交接／要发布上线留回执／多角色并行——命中任一才算大项目，按包内 README＋归位表**铺包**进项目根再开工（禁"复制一份规则再改"）；都不命中＝小活直接干，不铺包、不建账本、不起 Gate。**半套（套了却不落 AC/账本）按红线打回**。
+- **升级口径（2026-10-05 补，覆盖项目正文旧口径）**：计数单元＝**同一 task id（含返工子任务）**，只数 **supervisor 判 FAIL/打回该 Task 交付** 的次数（QA 自身任务判 FAIL 不计）；累计 2 次自动升 senior-expert（当次生效，不打断用户）；**senior 接手后被打回 2 次即停线找人**（不再升）。与项目正文旧口径（如"builder 连续失败 2 次"）冲突时**以本区块为准**。
+- **Phase Integrity 补两条抽查（2026-10-05）**：supervisor 复检须抽查①派工口是否由 `detect-client.sh` 的 `mode` 决定、禁通道角色套进客户端 subagent；②派工前是否跑过 `check-channel-preflight.sh` 且非 `CHANNEL-STALE`（STALE 仍派即打回）。详见 `docs/roles/supervisor.md` 第 8/9 条。
+- **红线（2026-09-29 增补）**：产品验收未落盘或关键 AC 未测、不得报完工/收工；首次发布未取得用户签收、不得报完工/收工；汇报只报三类小事自决（口径见上「汇报与自决」）。
+- **本项目迁移状态**：`docs/model/GOVERNANCE-STATE.json`（`rules_version`／`synced_at`／`project_phase_field`／`task_ledger_rows`／`agents_block_injected`／`product_acceptance_ac_added`）。
 - **存量项目待办（不自动做，需项目 TM 判断）**：本项目实绩 Plan 需补「视觉与交互验收标准（AC 编号）＋关键 AC 集合＋发布类型」，否则新规则下收尾会被判**计划缺项**；完成后把 `product_acceptance_ac_added` 置 `true`。
 <!-- ORCA-RULES-BLOCK:END -->
 
@@ -64,9 +73,9 @@ Release 包的 zip 文件名由 git tag（`v*`）决定，README 下载表里 ma
 ## 当前状态与下一步
 
 - 当前已发布版本：**0.6.0**（OpenCode Go 双账号监测、菜单栏 GPT 5 小时恢复倒计时 + OC1 标签、胶囊月额度恢复天数、GPT 预警事件日志 `AlertEventLogger`、Codex 原生凭据刷新、菜单栏状态项稳定性一批修复）
-- 未发布（见 CHANGELOG「未发布」）：菜单栏 OC 状态项月额度恢复天数后缀（如 `OC1 99/89/45% 20D`，随刷新按 `ResetsAt` 重算）。待办见下方「下一步」
+- 未发布（见 CHANGELOG「未发布」）：启动不弹卡片（初始化完成后隐藏主窗，启动 60 秒内「窗口未显示 + 用户从未打开过」才抑制 Reopen 激活）、通知弹窗屏外与透明修复（统一逻辑点定位 + 直接属性淡入淡出）、菜单栏 Builder 推荐状态项（夜间 `trae/open/work·ds` 三家并列）与到点轻通知、OC 状态项月额度恢复天数后缀（如 `OC1 99/89/45% 20D`，随刷新按 `ResetsAt` 重算）。待办见下方「下一步」
 - 测试工程在 macOS 上不可运行（引用 WPF csproj，缺 WindowsDesktop SDK）；共享代码验证以 `dotnet build src/DeepSeekBalanceWidget.Mac/...` 为准
-- 下一步：① 补齐 WorkBuddy 实际额度接入（当前仍是占位）；② README 的界面截图仍是 v0.6.0 之前的版本（本机缺屏幕录制权限，无法重截胶囊新布局），有权限时补；③ 视 Windows 新仓库落地情况，决定是否把 `src/DeepSeekBalanceWidget/`（WPF）从本仓库移除
+- 下一步：① 补齐 WorkBuddy 实际额度接入（当前仍是占位）；② 0.7.0 发版（未发布 4 条转版号，打 tag 前核对三处版本一致性；2026-10-07 的 hero/菜单栏实拍已上 README，胶囊细节图可在发版时顺带重截）；③ 视 Windows 新仓库落地情况，决定是否把 `src/DeepSeekBalanceWidget/`（WPF）从本仓库移除；④ `docs/skill-reveiw/SKILL-REVIEW.md` 候选 skill 逐条审查
 
 ## 治理模板已应用
 

@@ -31,6 +31,7 @@
     <Compile Include="../../src/DeepSeekBalanceWidget/Models/*.cs" Link="Models/%(Filename)%(Extension)" />
     <Compile Include="../../src/DeepSeekBalanceWidget/Services/AlertEvaluator.cs" Link="Services/AlertEvaluator.cs" />
     <Compile Include="../../src/DeepSeekBalanceWidget/Services/BalanceChangeCalculator.cs" Link="Services/BalanceChangeCalculator.cs" />
+    <Compile Include="../../src/DeepSeekBalanceWidget/Services/BuilderRecommendationCalculator.cs" Link="Services/BuilderRecommendationCalculator.cs" />
     <Compile Include="../../src/DeepSeekBalanceWidget/Services/BalanceParser.cs" Link="Services/BalanceParser.cs" />
     <Compile Include="../../src/DeepSeekBalanceWidget/Services/CcSwitchCodexUsageProvider.cs" Link="Services/CcSwitchCodexUsageProvider.cs" />
     <Compile Include="../../src/DeepSeekBalanceWidget/Services/CodexAppServerClient.cs" Link="Services/CodexAppServerClient.cs" />

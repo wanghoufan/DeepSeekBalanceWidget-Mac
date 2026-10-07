@@ -9,6 +9,8 @@ namespace DeepSeekBalanceWidget;
 
 public partial class App : Application
 {
+    private readonly DateTime _launchUtc = DateTime.UtcNow;
+
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
     public override void OnFrameworkInitializationCompleted()
@@ -37,8 +39,22 @@ public partial class App : Application
                 Console.Error.WriteLine($"[DockLifecycle] Activatable lifetime registered: {activatable.GetType().FullName}");
                 activatable.Activated += (_, e) =>
                 {
-                    Debug.WriteLine($"[DockLifecycle] Activated entry kind={e.Kind} visible={desktop.MainWindow?.IsVisible}");
-                    Console.Error.WriteLine($"[DockLifecycle] Activated entry kind={e.Kind} visible={desktop.MainWindow?.IsVisible}");
+                    // 启动阶段的 Reopen（open -a / 安装脚本触发）不还原窗口：启动即隐藏，
+                    // 否则刚藏好的主窗口会被启动激活立刻顶回来。LS 的 Reopen 可能晚到
+                    // （实测见过 30s+），所以以「窗口未显示 + 用户从未主动打开过 +
+                    // 启动 60 秒内」三条件抑制；用户一旦通过菜单栏/Dock 打开过
+                    // （UserOpened=true）或超过 60 秒，之后的激活一律正常还原。
+                    double sinceLaunch = (DateTime.UtcNow - _launchUtc).TotalSeconds;
+                    var mainWindowRef = desktop.MainWindow as MainWindow;
+                    double sinceHide = mainWindowRef?.StartupHiddenUtc is { } hidden
+                        ? (DateTime.UtcNow - hidden).TotalSeconds
+                        : double.MaxValue;
+                    bool suppress = desktop.MainWindow?.IsVisible != true
+                                    && mainWindowRef?.UserOpened != true
+                                    && sinceLaunch < 60;
+                    Debug.WriteLine($"[DockLifecycle] Activated kind={e.Kind} sinceLaunch={sinceLaunch:0.00}s sinceHide={sinceHide:0.00}s userOpened={mainWindowRef?.UserOpened} suppress={suppress} visible={desktop.MainWindow?.IsVisible}");
+                    Console.Error.WriteLine($"[DockLifecycle] Activated kind={e.Kind} sinceLaunch={sinceLaunch:0.00}s sinceHide={sinceHide:0.00}s userOpened={mainWindowRef?.UserOpened} suppress={suppress} visible={desktop.MainWindow?.IsVisible}");
+                    if (suppress) return;
                     if (desktop.MainWindow is MainWindow mainWindow)
                     {
                         mainWindow.IsRestoringFromDock = true;
