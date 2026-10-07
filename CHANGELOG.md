@@ -6,6 +6,9 @@
 
 ## 未发布
 
+- 修复 **启动即弹出主窗口卡片**：启动时初始化完成（菜单栏状态项、刷新定时器、首次拉取）后立即隐藏主窗口，不再弹出账户卡片；抑制启动阶段的 Reopen 激活（窗口未显示 + 用户从未主动打开过 + 启动 60 秒内三条同时成立才抑制，覆盖 macOS LaunchServices Reopen 晚到 30s+ 的实测情况），用户通过菜单栏/Dock 打开过一次之后，后续一切激活照常还原窗口
+- 修复 **通知弹窗在 macOS 上「窗口存在但屏幕上看不见」**：`RepositionAll` 曾把逻辑点坐标再乘 `RenderScaling`，把通知摆到点坐标 3288（屏宽仅 1920 点）——窗口整只出屏，CG 窗口列表显示 `alpha=1.0 onscreen=true` 但 `screencapture -l` 报 `could not create image from window`；现统一按逻辑点定位，通知稳定显示在设置锚点（默认右上）并按堆叠顺序排布。淡入淡出改为直接属性插值、结束时显式落地目标透明度（`Animation.RunAsync` 对 `Visual.Opacity` 的 KeyFrame 动画在透明窗口上跑完后内容渲染仍全透明），保留 1.5 秒透明度兜底强制补正
+- 新增 **菜单栏 Builder 推荐状态项与到点提醒**：菜单栏最左侧新增独立 `NSStatusItem`（位于 DeepSeek 余额项左侧），按固定北京时间 UTC+8 的工作日 / 周末两张表输出短文本 `trae/open/work·ds`（夜间：trae 优惠 + open/work ds 非高峰，符合的全部并列写上，不限平台个数）、`open/work·ds`、`qoder·ds/work·glm`（客户端短名仅 `trae`/`qoder`/`open`/`work`，模型短名仅 `ds`/`glm`；免费的 MiMo / Qwen 明确不进推荐），Tooltip 展示当前原因与下一次切换时间；推荐变化时复用 `MacToastService` 弹一次 8 秒普通轻通知（首启不弹、重复 Tick 与睡眠恢复不重复、不补发历史提醒、尊重 `ShowToastNotifications` 总开关）。规则集中在共享 `BuilderRecommendationCalculator`（纯规则 SSOT，判断不散落在 UI 层），配套 `BuilderRecommendationCalculatorTests` 覆盖全部时段边界、周末、时区与 `NextBoundaryBeijing`；中国法定节假日不作特殊判断
 - 新增 **菜单栏 OC 月额度恢复天数**：OC1/OC2 状态项在百分比右侧追加纯天数后缀（如 `OC1 98/95/48% 20D`），随每次额度刷新按 `ResetsAt` 重算；无月窗口或重置时间未知时不显示后缀。此前该天数只存在于胶囊月行（0.6.0 的「胶囊月额度恢复天数」），菜单栏从未接入
 
 ## 0.6.0 — 2026-09-23

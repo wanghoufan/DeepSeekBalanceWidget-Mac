@@ -4,23 +4,23 @@
 
 > ⚠️ **本仓库只维护 macOS 端**（Avalonia / .NET 8）。Windows（WPF）端已拆分为**独立仓库**，此处不再维护，Windows 相关改动请提交到 Windows 仓库。
 >
-> DeepSeek 余额 & ChatGPT Plus 用量监控桌面悬浮窗 · macOS 12+ · 基于 .NET 8
+> DeepSeek 余额 & ChatGPT / OpenCode 用量监控桌面悬浮窗 · macOS 12+ · 基于 .NET 8
 >
-> _DeepSeek balance & ChatGPT Plus usage monitor — a desktop widget for macOS._
+> _DeepSeek balance & ChatGPT / OpenCode quota monitor — a desktop widget for macOS._
 
-一个面向 macOS 的 DeepSeek API 余额与 ChatGPT Plus 用量监控小工具。它支持余额轮询、Plus 剩余额度、开机自启和异常状态提示，并提供贴边自动隐藏、迷你胶囊和菜单栏常驻。
+一个面向 macOS 的 DeepSeek API 余额与 ChatGPT Plus / OpenCode Go 用量监控小工具。它支持余额轮询、额度低量弹窗提醒、开机自启和异常状态提示，并提供贴边自动隐藏、迷你胶囊、菜单栏常驻和 Builder 推荐时段提示。
 
 这是一个面向中文用户的 macOS 桌面工具，界面基于 Avalonia。下面的标签是 GitHub 使用的技术分类，中文含义见[标签说明](#标签说明)。
 
-[![Release](https://img.shields.io/github/v/release/wanghoufan/DeepSeekBalanceWidget-Mac?display_name=tag)](https://github.com/wanghoufan/DeepSeekBalanceWidget-Mac/releases/latest)
-[![Platform](https://img.shields.io/badge/platform-macOS-000000?logo=apple)](https://github.com/wanghoufan/DeepSeekBalanceWidget-Mac)
+[![Release](https://img.shields.io/github/v/release/wanghoufan/p010-deepseek-balance-mac?display_name=tag)](https://github.com/wanghoufan/p010-deepseek-balance-mac/releases/latest)
+[![Platform](https://img.shields.io/badge/platform-macOS-000000?logo=apple)](https://github.com/wanghoufan/p010-deepseek-balance-mac)
 [![.NET](https://img.shields.io/badge/.NET-8.0-512BD4)](https://dotnet.microsoft.com/)
 
-![DeepSeek 余额监控 v0.5.0](artifacts/ui-audit/02-after.png)
+![DeepSeek 余额监控当前界面](artifacts/ui-audit/main-window-2026-10-07.png)
 
 ## 下载
 
-前往 [Releases](https://github.com/wanghoufan/DeepSeekBalanceWidget-Mac/releases/latest) 下载 macOS 安装包：
+前往 [Releases](https://github.com/wanghoufan/p010-deepseek-balance-mac/releases/latest) 下载 macOS 安装包：
 
 | 文件 | 适用平台 |
 | --- | --- |
@@ -74,6 +74,7 @@ bash scripts/install-macos.sh arm64
 - macOS 版提供完整卡片与迷你胶囊模式，可自由拖动、记忆位置，并可选贴边自动隐藏
 - 在菜单栏实时显示余额、Plus 用量百分比（含 5 小时恢复倒计时）、OpenCode Go 额度（第二把 Key 时另有独立 OC2 状态项）和高峰时段指示
 - 菜单栏状态、置顶、隐藏、开机自启；按北京时间显示官方峰值时段参考
+- **Builder 时间调度提示**（开发中，未发布）：菜单栏最左侧新增独立推荐状态项，固定按北京时间（UTC+8）在 `trae/open/work·ds`（夜间三家同时符合）/ `open/work·ds` / `qoder·ds/work·glm` 间切换（同一时刻所有符合条件的平台全部并列写上；客户端短名仅 `trae`/`qoder`/`open`/`work`，模型短名仅 `ds`/`glm`；免费的 MiMo / Qwen 不进推荐），推荐变化时弹 8 秒轻通知；周一~周五与周六/周日两套规则，中国法定节假日不作特殊判断
 - API Key 存入 macOS 登录钥匙串，不落明文、不上传
 
 ## v0.6.0 更新亮点
@@ -84,12 +85,18 @@ bash scripts/install-macos.sh arm64
 - **Codex 原生凭据刷新**：除 CC Switch 存储外支持读取 Codex 原生 `auth.json` 账号，OAuth token 过期自动刷新并原子回写
 - **稳定性**：菜单栏状态项改为只在启动时创建一次 + `setVisible:` 显隐（修「菜单栏整条不显示」）、SIGTERM 收尾摘除状态项（修点不动的残影项）、钥匙串写入失败回滚保住旧 Key、设置保存移出 UI 线程并加 15 秒超时、欠费负余额不再被判为非法数据、已撤销的 OpenCode 账号不再占用菜单栏
 
-**开发中（未发布）**：菜单栏 OC 状态项月额度恢复天数后缀（如 `OC1 99/89/45% 20D`）；WorkBuddy 实际额度接入（当前仍为占位）——详见 [CHANGELOG.md](CHANGELOG.md)「未发布」章节。
+**开发中（未发布）**：启动不再弹出主窗口卡片（初始化完成后隐藏，启动 60 秒内「窗口未显示 + 用户从未打开过」才抑制 Reopen 激活）；通知弹窗定位与淡入修复（统一按屏幕逻辑点定位）；菜单栏 Builder 推荐状态项与到点提醒（见「主要功能」）；菜单栏 OC 状态项月额度恢复天数后缀（如 `OC1 99/89/45% 20D`）；WorkBuddy 实际额度接入（当前仍为占位）——详见 [CHANGELOG.md](CHANGELOG.md)「未发布」章节。
 
 详见 [CHANGELOG.md](CHANGELOG.md)。
 
 <details>
-<summary>查看当前界面（v0.5.0）</summary>
+<summary>查看界面</summary>
+
+**菜单栏状态项（2026-10-07 实拍，最左侧为 Builder 推荐项）**
+
+![菜单栏状态项](artifacts/ui-audit/menubar-2026-10-07.png)
+
+**历史对照（v0.5.0）**
 
 | 迷你胶囊（单行宽布局） | 展开卡片 |
 | --- | --- |
@@ -109,6 +116,11 @@ bash scripts/install-macos.sh arm64
 | `macos` | 面向 macOS 12+ 使用 |
 | `avalonia` | macOS 版使用 Avalonia 构建界面 |
 | `dotnet` | 基于 .NET 8 开发 |
+| `chatgpt` | 读取本机 Codex 登录状态监控 ChatGPT 用量 |
+| `opencode` | 接入 OpenCode Go 额度 |
+| `menubar` | 菜单栏常驻状态项 |
+| `macos-app` | macOS 原生 .app 应用 |
+| `csharp` | 使用 C# 开发 |
 
 仓库右侧的 About 区域提供项目简介和这些技术标签；README 负责提供完整的中文使用说明。
 

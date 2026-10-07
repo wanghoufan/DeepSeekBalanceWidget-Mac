@@ -4,19 +4,19 @@
 
 > ⚠️ **This repository maintains the macOS build only** (Avalonia / .NET 8). The Windows (WPF) app has been split into a **separate repository** and is no longer maintained here — please submit Windows-related changes to the Windows repo.
 >
-> DeepSeek balance & ChatGPT Plus usage monitor — a desktop widget for macOS 12+, built on .NET 8.
+> DeepSeek balance & ChatGPT / OpenCode quota monitor — a desktop widget for macOS 12+, built on .NET 8.
 
-A macOS menu-bar widget that monitors your DeepSeek API balance and ChatGPT Plus usage. It supports balance polling, Plus remaining quota, launch-at-login, and abnormal-state alerts, with edge-snapping auto-hide, a mini capsule, and a menu-bar presence.
+A macOS menu-bar widget that monitors your DeepSeek API balance plus ChatGPT / OpenCode Go quota. It supports balance polling, low-quota popup alerts, launch-at-login, and abnormal-state alerts, with edge-snapping auto-hide, a mini capsule, a menu-bar presence, and Builder time-slot recommendations.
 
-[![Release](https://img.shields.io/github/v/release/wanghoufan/DeepSeekBalanceWidget-Mac?display_name=tag)](https://github.com/wanghoufan/DeepSeekBalanceWidget-Mac/releases/latest)
-[![Platform](https://img.shields.io/badge/platform-macOS-000000?logo=apple)](https://github.com/wanghoufan/DeepSeekBalanceWidget-Mac)
+[![Release](https://img.shields.io/github/v/release/wanghoufan/p010-deepseek-balance-mac?display_name=tag)](https://github.com/wanghoufan/p010-deepseek-balance-mac/releases/latest)
+[![Platform](https://img.shields.io/badge/platform-macOS-000000?logo=apple)](https://github.com/wanghoufan/p010-deepseek-balance-mac)
 [![.NET](https://img.shields.io/badge/.NET-8.0-512BD4)](https://dotnet.microsoft.com/)
 
-![DeepSeek balance monitor v0.5.0](artifacts/ui-audit/02-after.png)
+![DeepSeek balance monitor — current UI](artifacts/ui-audit/main-window-2026-10-07.png)
 
 ## Download
 
-Grab the macOS installer from [Releases](https://github.com/wanghoufan/DeepSeekBalanceWidget-Mac/releases/latest):
+Grab the macOS installer from [Releases](https://github.com/wanghoufan/p010-deepseek-balance-mac/releases/latest):
 
 | File | Platform |
 | --- | --- |
@@ -70,6 +70,7 @@ The script opens the app so it registers with Launchpad; afterwards you can star
 - Full card and mini capsule modes, freely draggable with remembered position, optional edge-snapping auto-hide
 - Live menu-bar display of balance, Plus usage percentage (with the 5-hour reset countdown), OpenCode Go quota (a standalone OC2 item when a second key is configured), and peak/off-peak indicator
 - Menu-bar status, pin-on-top, hide, launch at login; official peak hours shown in Beijing time
+- **Builder time-slot recommendations** (in development, unreleased): a dedicated status item at the far left of the menu bar switches between `trae/open/work·ds` (nighttime — every qualifying platform listed side by side), `open/work·ds`, and `qoder·ds/work·glm` on fixed Beijing-time (UTC+8) weekday/weekend schedules (client short names are `trae`/`qoder`/`open`/`work`, model short names `ds`/`glm`; free MiMo / Qwen are never recommended), popping an 8-second lightweight notification when the recommendation changes; China public holidays are not specially handled
 - API key stored in the macOS login Keychain — never in plaintext, never uploaded
 
 ## v0.6.0 Highlights
@@ -80,12 +81,18 @@ The script opens the app so it registers with Launchpad; afterwards you can star
 - **Native Codex credential refresh**: reads Codex's own `auth.json` accounts in addition to CC Switch storage, refreshing expired OAuth tokens and writing both stores atomically
 - **Stability**: menu-bar status items are now created once at launch and toggled with `setVisible:` (fixes the whole menu bar going blank), removed on SIGTERM (fixes frozen, unclickable leftovers), Keychain writes roll back so an existing key survives a failed save, settings save moved off the UI thread with a 15 s timeout, negative balances from an overdue account are no longer rejected, and revoked OpenCode accounts no longer occupy the menu bar
 
-**In development (unreleased)**: a monthly-quota countdown suffix on the menu-bar OC item (e.g. `OC1 99/89/45% 20D`); real WorkBuddy quota integration (still a placeholder) — see the "Unreleased" section of [CHANGELOG.md](CHANGELOG.md).
+**In development (unreleased)**: no more main-window card popping up at launch (the window is hidden after initialization; a LaunchServices Reopen is suppressed only within the first 60 seconds while the window has never been shown and never opened manually); notification popup positioning and fade fixes (logical-point coordinates throughout); the menu-bar Builder recommendation status item and on-time alerts (see Features); a monthly-quota countdown suffix on the menu-bar OC item (e.g. `OC1 99/89/45% 20D`); real WorkBuddy quota integration (still a placeholder) — see the "Unreleased" section of [CHANGELOG.md](CHANGELOG.md).
 
 See [CHANGELOG.md](CHANGELOG.md) for the full changelog.
 
 <details>
-<summary>Current UI (v0.5.0)</summary>
+<summary>Interface</summary>
+
+**Menu-bar status items (captured 2026-10-07; Builder recommendation at the far left)**
+
+![Menu-bar status items](artifacts/ui-audit/menubar-2026-10-07.png)
+
+**Historical comparison (v0.5.0)**
 
 | Mini capsule (single-row-wide layout) | Expanded card |
 | --- | --- |
